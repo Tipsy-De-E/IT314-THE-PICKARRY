@@ -1,0 +1,577 @@
+/* Courier History Styles - Enhanced Design */
+
+/* Import base styles */
+@import './courier-home.css';
+
+/* History Main Content */
+.courier-main-content {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+}
+
+/* History Header */
+.history-header {
+    margin-bottom: 12px;
+}
+
+.history-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+    color: white;
+    font-weight: bold;
+}
+
+.history-header p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 16px;
+}
+
+/* Earnings Summary */
+.earnings-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: #1f2937;
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    border-color: #14b8a6;
+    transform: translateY(-2px);
+}
+
+.summary-card h3 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.earnings-amount,
+.orders-count,
+.bookings-count {
+    margin: 0 0 8px 0;
+    font-size: 32px;
+    font-weight: bold;
+    color: #14b8a6;
+}
+
+.earnings-period,
+.orders-period,
+.bookings-period {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Section Header */
+.section-header {
+    margin-bottom: 16px;
+}
+
+.section-header h2 {
+    margin: 0 0 4px 0;
+    font-size: 20px;
+    color: white;
+    font-weight: 600;
+}
+
+.section-header p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* Booking Services Section */
+.booking-services-section {
+    margin-bottom: 32px;
+}
+
+.booking-services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.booking-service-card {
+    background: #1f2937;
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.booking-service-card:hover {
+    border-color: #14b8a6;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.service-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.service-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.service-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: white;
+    font-weight: 600;
+}
+
+.service-description {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    color: #9ca3af;
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.service-availability {
+    margin-bottom: 16px;
+}
+
+.availability-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(20, 184, 166, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+.availability-count {
+    font-size: 14px;
+    font-weight: bold;
+    color: #14b8a6;
+}
+
+.availability-label {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.service-button {
+    padding: 10px 16px;
+    background: none;
+    border: 2px solid;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.service-button:hover {
+    background: rgba(20, 184, 166, 0.1);
+}
+
+/* History Section */
+.history-section {
+    margin-bottom: 32px;
+}
+
+/* History List */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.history-order-card {
+    background: #1f2937;
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.2s;
+}
+
+.history-order-card:hover {
+    border-color: #14b8a6;
+    transform: translateY(-2px);
+}
+
+.order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.order-pickup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-weight: 500;
+}
+
+.order-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.status-icon.completed {
+    color: #22c55e;
+}
+
+.status-icon.cancelled {
+    color: #ef4444;
+}
+
+.status-text {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-text.completed {
+    color: #22c55e;
+}
+
+.status-text.cancelled {
+    color: #ef4444;
+}
+
+.order-details {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.order-detail {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.detail-icon {
+    color: #14b8a6;
+    flex-shrink: 0;
+}
+
+/* Order Footer */
+.order-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1px solid rgba(75, 85, 99, 0.3);
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.order-earnings {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.earnings-label {
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.earnings-value {
+    color: #22c55e;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Remarks Button */
+.remarks-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(20, 184, 166, 0.1);
+    border: 1px solid #14b8a6;
+    border-radius: 8px;
+    color: #14b8a6;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.remarks-button:hover {
+    background: rgba(20, 184, 166, 0.2);
+}
+
+.remarks-button.has-remarks {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
+.remarks-button.has-remarks:hover {
+    background: rgba(34, 197, 94, 0.2);
+}
+
+.remarks-preview {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(75, 85, 99, 0.3);
+    border-left: 3px solid #14b8a6;
+    border-radius: 4px;
+}
+
+.remark-text {
+    margin: 0;
+    color: #d1d5db;
+    font-size: 13px;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.remarks-modal {
+    background: #1f2937;
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.5);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: white;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: #14b8a6;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.order-info {
+    margin-bottom: 24px;
+    padding: 12px;
+    background: rgba(20, 184, 166, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid #14b8a6;
+}
+
+.order-id {
+    margin: 0;
+    color: #14b8a6;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.remarks-form {
+    margin-bottom: 24px;
+}
+
+.remarks-form label {
+    display: block;
+    margin-bottom: 12px;
+    color: white;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.remarks-textarea {
+    width: 100%;
+    padding: 12px;
+    background: rgba(31, 41, 55, 0.8);
+    border: 2px solid #14b8a6;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+.remarks-textarea:focus {
+    outline: none;
+    border-color: #0d9488;
+    background: rgba(31, 41, 55, 1);
+}
+
+.remarks-textarea::placeholder {
+    color: #6b7280;
+}
+
+.character-count {
+    margin: 8px 0 0 0;
+    color: #9ca3af;
+    font-size: 12px;
+    text-align: right;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.cancel-button,
+.save-button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.cancel-button {
+    background: rgba(75, 85, 99, 0.5);
+    color: #9ca3af;
+}
+
+.cancel-button:hover {
+    background: rgba(75, 85, 99, 0.7);
+}
+
+.save-button {
+    background: #14b8a6;
+    color: white;
+}
+
+.save-button:hover {
+    background: #0d9488;
+}
+
+.save-button:disabled {
+    background: rgba(75, 85, 99, 0.3);
+    cursor: not-allowed;
+    color: #6b7280;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .booking-services-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+
+    .earnings-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .courier-main-content {
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .history-header h1 {
+        font-size: 24px;
+    }
+
+    .earnings-summary {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .summary-card {
+        padding: 16px;
+    }
+
+    .earnings-amount,
+    .orders-count,
+    .bookings-count {
+        font-size: 28px;
+    }
+
+    .booking-services-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .booking-service-card {
+        padding: 16px;
+    }
+
+    .history-order-card {
+        padding: 16px;
+    }
+
+    .order-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .remarks-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

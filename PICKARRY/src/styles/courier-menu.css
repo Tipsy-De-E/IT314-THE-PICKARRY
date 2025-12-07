@@ -1,0 +1,186 @@
+/* If screen is slightly larger (tablet) keep two-column but ensure box-sizing */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr 1fr;
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .booking-form,
+    .map-section {
+        padding: 16px;
+    }
+}
+
+/* Larger desktops keep original two-column layout */
+@media (min-width: 1200px) {
+    .main-content {
+        padding: 28px;
+        gap: 24px;
+    }
+
+    .map-container {
+        height: 420px;
+    }
+}
+
+/* Utility to avoid accidental horizontal overflow from long text/values */
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+/* ======= Patch: Mobile map & overflow fixes (global defensive) ======= */
+
+/* GLOBAL DEFENSIVE RULES */
+html,
+body {
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
+    /* prevents any accidental horizontal scroll */
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+}
+
+/* Make media responsive */
+img,
+svg,
+video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Allow flex/grid children to shrink properly */
+.customer-content,
+.main-content,
+.booking-form,
+.map-section,
+.vehicles-container,
+.customer-sidebar {
+    min-width: 0;
+}
+
+/* INPUTS / SELECTS - prevent them from forcing width */
+.input-with-icon input,
+.service-select-hidden,
+.payment-select,
+.payment-text,
+.category-button,
+select {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* VEHICLE CARDS - reduce min-width so they won't force horizontal scroll (already adjusted above) */
+.vehicles-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+}
+
+.vehicle-card {
+    min-width: 72px;
+    /* smaller but still tappable */
+    max-width: 140px;
+    box-sizing: border-box;
+}
+
+/* MAP CONTAINERS - make sure they never overflow their parent */
+.map-section,
+.map-container,
+.map-placeholder {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Constrain absolute-positioned markers so they stay inside map bounds.
+   Using clamp prevents them from being positioned outside on narrow screens. */
+.map-placeholder .location-marker {
+    position: absolute;
+    z-index: 2;
+    left: clamp(6%, 50%, 94%);
+    top: clamp(6%, 50%, 94%);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Make map controls smaller on narrow screens */
+@media (max-width: 420px) {
+    .map-controls {
+        right: 8px;
+        top: 8px;
+    }
+
+    .map-control-btn {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+/* CHEVRONS / PSEUDOS - keep inline and non-overflowing */
+.service-dropdown-item::after,
+.payment-dropdown::after {
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    pointer-events: none;
+}
+
+/* DETAIL CELLS - avoid extremely long text causing overflow */
+.detail-value,
+.mobile-location-value {
+    max-width: 220px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-align: right;
+}
+
+/* LAST-RESORT: clip overflow on very narrow screens */
+@media (max-width: 360px) {
+
+    .main-content,
+    .booking-form,
+    .modal-content {
+        overflow-x: hidden;
+    }
+
+    .customer-sidebar {
+        padding: 8px;
+    }
+
+    .nav-item {
+        min-width: 60px;
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .input-with-icon input {
+        padding-right: 36px;
+    }
+
+    .vehicle-card {
+        min-width: 64px;
+    }
+
+    .order-button {
+        padding: 12px;
+        font-size: 15px;
+    }
+}
+
+/* DEBUG (optional) - enable temporarily to find overflowing elements */
+/* * { outline: 1px dashed rgba(255,0,0,0.04); } */

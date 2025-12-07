@@ -1,0 +1,371 @@
+.rider-community {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+    color: white;
+}
+
+.community-main-content {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.community-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.community-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.menu-back-button {
+    position: absolute;
+    left: 0;
+    background: none;
+    border: none;
+    color: #14b8a6;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.menu-back-button:hover {
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.community-title h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.community-title-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: #2dd4bf;
+}
+
+.community-subtitle {
+    color: #9ca3af;
+    font-size: 1.1rem;
+}
+
+.community-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    background: #1f2937;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+}
+
+.community-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 0.5rem;
+    color: #9ca3af;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.community-tab.active {
+    background: #374151;
+    color: #2dd4bf;
+}
+
+.community-tab:hover:not(.active) {
+    background: #374151;
+    color: #d1d5db;
+}
+
+.new-post-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: #1f2937;
+    border-radius: 1rem;
+    border: 1px solid #374151;
+    margin-bottom: 2rem;
+}
+
+.post-avatar {
+    width: 3rem;
+    height: 3rem;
+    background: #2dd4bf;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #0f172a;
+    flex-shrink: 0;
+}
+
+.post-input {
+    flex: 1;
+    padding: 1rem;
+    background: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 2rem;
+    color: white;
+    font-size: 1rem;
+}
+
+.post-input:focus {
+    outline: none;
+    border-color: #2dd4bf;
+}
+
+.post-button {
+    padding: 0.75rem 1.5rem;
+    background: #2dd4bf;
+    color: #0f172a;
+    border: none;
+    border-radius: 2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.post-button:hover {
+    background: #22d3c9;
+    transform: translateY(-1px);
+}
+
+.forum-posts {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.forum-post {
+    background: #1f2937;
+    border-radius: 1rem;
+    border: 1px solid #374151;
+    padding: 1.5rem;
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.post-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.post-user .post-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: #4b5563;
+    color: white;
+}
+
+.user-name {
+    color: white;
+    font-weight: 600;
+}
+
+.user-role {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+.post-time {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.post-content {
+    color: #d1d5db;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.post-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.post-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #374151;
+    border: none;
+    border-radius: 2rem;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.post-action:hover {
+    background: #4b5563;
+    color: #d1d5db;
+}
+
+.events-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.events-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.event-card {
+    background: #1f2937;
+    border-radius: 1rem;
+    border: 1px solid #374151;
+    padding: 1.5rem;
+}
+
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.event-header h3 {
+    color: white;
+    font-size: 1.25rem;
+}
+
+.event-attendees {
+    background: #2dd4bf;
+    color: #0f172a;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.event-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.event-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #9ca3af;
+}
+
+.event-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.attend-button,
+.maybe-button {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.attend-button {
+    background: #2dd4bf;
+    color: #0f172a;
+}
+
+.attend-button:hover {
+    background: #22d3c9;
+}
+
+.maybe-button {
+    background: #374151;
+    color: #9ca3af;
+}
+
+.maybe-button:hover {
+    background: #4b5563;
+    color: #d1d5db;
+}
+
+.community-stats {
+    background: #1f2937;
+    border-radius: 1rem;
+    border: 1px solid #374151;
+    padding: 1.5rem;
+}
+
+.community-stats h3 {
+    color: white;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: #374151;
+    border-radius: 0.75rem;
+}
+
+.stat-number {
+    color: #2dd4bf;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .community-tabs {
+        flex-direction: column;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .post-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .community-main-content {
+        padding: 1rem;
+    }
+}

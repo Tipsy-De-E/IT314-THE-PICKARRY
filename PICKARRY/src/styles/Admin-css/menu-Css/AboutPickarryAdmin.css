@@ -1,0 +1,231 @@
+/* src/components/Admin/AboutPickarryAdmin.css
+.admin-about-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.admin-about-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-content h1 {
+    margin: 0;
+    color: #2d3748;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.header-content p {
+    margin: 5px 0 0 0;
+    color: #718096;
+    font-size: 14px;
+}
+
+.back-button {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    color: #4a5568;
+    transition: all 0.2s;
+}
+
+.back-button:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.save-button,
+.edit-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.save-button {
+    background: #48bb78;
+    color: white;
+}
+
+.save-button:hover {
+    background: #38a169;
+}
+
+.edit-button {
+    background: #4299e1;
+    color: white;
+}
+
+.edit-button:hover {
+    background: #3182ce;
+}
+
+.admin-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-section h2 {
+    margin: 0 0 20px 0;
+    color: #2d3748;
+    font-size: 20px;
+    font-weight: 600;
+    border-bottom: 2px solid #edf2f7;
+    padding-bottom: 10px;
+}
+
+.input-group {
+    margin-bottom: 16px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.input-group input,
+.input-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.input-group input:disabled,
+.input-group textarea:disabled {
+    background-color: #f7fafc;
+    color: #718096;
+    cursor: not-allowed;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.stats-grid-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.stat-input-group {
+    background: #f7fafc;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.features-grid-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.feature-input-card {
+    background: #f7fafc;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.team-grid-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.team-input-card {
+    background: #f7fafc;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.team-avatar-upload {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 16px;
+}
+
+.team-avatar,
+.team-avatar-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.team-avatar-placeholder {
+    background: #4299e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.upload-button {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #48bb78;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: 2px solid white;
+}
+
+.upload-button:hover {
+    background: #38a169;
+}
+
+.contact-grid-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.section-content {
+    max-width: 600px;
+} */

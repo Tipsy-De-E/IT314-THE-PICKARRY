@@ -1,0 +1,40 @@
+/* Add these utility classes for consistent button alignment */
+.min-w-0 {
+    min-width: 0;
+}
+
+.flex-shrink-0 {
+    flex-shrink: 0;
+}
+
+.line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.whitespace-nowrap {
+    white-space: nowrap;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lg\:items-start {
+    align-items: flex-start;
+}
+
+.lg\:self-start {
+    align-self: flex-start;
+}
+
+@media (min-width: 1024px) {
+    .lg\:items-center {
+        align-items: center;
+        display: contents;
+    }
+}

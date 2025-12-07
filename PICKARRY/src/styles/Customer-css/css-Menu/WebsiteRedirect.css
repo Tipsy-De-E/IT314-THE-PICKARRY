@@ -1,0 +1,296 @@
+.customer-feature-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.feature-header {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+
+    backdrop-filter: blur(10px);
+    position: relative;
+}
+
+.back-button {
+    position: absolute;
+    left: 0;
+    background: none;
+    border: none;
+    color: #14b8a6;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.feature-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    margin-left: 40px;
+}
+
+.feature-title h1 {
+    color: #2d3748;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.feature-title svg {
+    color: #667eea;
+}
+
+.feature-description {
+    color: #718096;
+    font-size: 16px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.website-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.website-hero {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 40px 30px;
+    margin-bottom: 25px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.website-icon-large {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+.website-icon-large svg {
+    color: white;
+}
+
+.website-hero h2 {
+    color: #2d3748;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.website-hero p {
+    color: #718096;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.website-features {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.website-features h3 {
+    color: #2d3748;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.website-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.website-feature:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: translateX(5px);
+}
+
+.feature-icon {
+    width: 40px;
+    height: 40px;
+    background: #667eea;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feature-icon svg {
+    color: white;
+}
+
+.feature-text h4 {
+    color: #2d3748;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+.feature-text p {
+    color: #718096;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.redirect-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.redirect-card {
+    text-align: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.redirect-card h3 {
+    color: #2d3748;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.redirect-card p {
+    color: #718096;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.visit-website-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 0 auto 20px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.visit-website-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.security-note {
+    font-size: 14px !important;
+    color: #48bb78 !important;
+    background: rgba(72, 187, 120, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(72, 187, 120, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .customer-feature-page {
+        padding: 15px;
+    }
+
+    .feature-header {
+        padding: 20px;
+    }
+
+    .website-hero {
+        padding: 30px 20px;
+    }
+
+    .website-hero h2 {
+        font-size: 26px;
+    }
+
+    .website-hero p {
+        font-size: 16px;
+    }
+
+    .website-features {
+        padding: 25px 20px;
+    }
+
+    .redirect-section {
+        padding: 25px 20px;
+    }
+
+    .website-feature {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .website-icon-large {
+        width: 60px;
+        height: 60px;
+    }
+
+    .website-icon-large svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .website-hero h2 {
+        font-size: 22px;
+    }
+
+    .feature-title h1 {
+        font-size: 24px;
+    }
+
+    .website-features h3 {
+        font-size: 20px;
+    }
+
+    .redirect-card h3 {
+        font-size: 20px;
+    }
+
+    .visit-website-button {
+        padding: 14px 24px;
+        font-size: 14px;
+    }
+}

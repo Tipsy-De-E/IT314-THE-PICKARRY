@@ -1,0 +1,371 @@
+/* Enhanced Earnings Modal Styles - Unique Classes */
+.pickarry-earnings-modal {
+    background: #1F2937;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    animation: pickarry-slideUp 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+}
+
+@keyframes pickarry-slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modal Header */
+.pickarry-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e0e0e0;
+    background: q1F2937;
+}
+
+.pickarry-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #10b981;
+}
+
+.pickarry-close-button {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.pickarry-close-button:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+/* Modal Body */
+.pickarry-modal-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+/* Earnings Summary Cards - Horizontal Layout */
+.pickarry-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 20px 24px;
+    background: #1F2937;
+    /* border-bottom: 1px solid #e0e0e0; */
+}
+
+.pickarry-summary-card {
+    background: #0f172a;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+
+}
+
+.pickarry-summary-label {
+    display: block;
+    font-size: 12px;
+    color: #10b981;
+    margin-bottom: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pickarry-summary-amount {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: #10b981;
+}
+
+/* Earnings List Container */
+.pickarry-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pickarry-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #1F2937;
+}
+
+.pickarry-list-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #10b981;
+}
+
+.pickarry-transaction-count {
+    font-size: 12px;
+    color: #ffffff85;
+    /* background: #f5f5f5; */
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Table Styles */
+.pickarry-table-container {
+    flex: 1;
+    overflow: auto;
+}
+
+.pickarry-earnings-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+}
+
+.pickarry-table-header {
+    background: #1f2937;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.pickarry-table-header-row {
+    border-bottom: 2px solid #a1f9a1;
+}
+
+.pickarry-table-header-cell {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #10b981;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #0f172a;
+    border: none;
+}
+
+.pickarry-table-body {
+    background: #1f2937;
+}
+
+.pickarry-table-row {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.pickarry-table-row:hover {
+    background: #1f2937;
+}
+
+.pickarry-table-cell {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #10b981;
+    border: none;
+    vertical-align: top;
+}
+
+/* Specific column styles */
+.pickarry-order-id {
+    font-family: 'Courier New', monospace;
+    font-weight: 300;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.pickarry-location {
+    max-width: 200px;
+}
+
+.pickarry-location-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pickarry-route {
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.pickarry-date-time {
+    font-size: 12px;
+    color: #ffffff;
+}
+
+.pickarry-customer {
+    max-width: 150px;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.pickarry-amount {
+    font-weight: 600;
+    color: #ffffff;
+    /* text-align: right; */
+    white-space: nowrap;
+}
+
+/* .pickarry-service-type {
+    text-align: center;
+} */
+
+.pickarry-service-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    /* background: #e8f5e8; */
+    color: #2e7d32;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    /* border: 1px solid #c8e6c9; */
+}
+
+.pickarry-service-badge.booking {
+    /* background: #fff3e0; */
+    color: #ef6c00;
+    /* border-color: #ffcc80; */
+    font-weight: 700;
+}
+
+.pickarry-service-badge.pasugo {
+    /* background: #e3f2fd; */
+    color: #1565c0;
+    /* border-color: #90caf9; */
+    font-weight: 700;
+}
+
+.pickarry-service-badge.pasundo {
+    /* background: #f3e5f5; */
+    color: #a2761f;
+    /* border-color: #ce93d8; */
+    font-weight: 700;
+}
+
+/* No Earnings State */
+.pickarry-no-earnings {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+    color: #999;
+    background: #374151;
+    border-radius: 24px;
+}
+
+.pickarry-no-earnings-icon {
+    margin-bottom: 16px;
+    color: #ddd;
+}
+
+.pickarry-no-earnings p {
+    margin: 0;
+    font-size: 14px;
+    color: #999;
+}
+
+/* Scrollbar Styling */
+.pickarry-table-container::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.pickarry-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.pickarry-table-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.pickarry-table-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .pickarry-summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 16px 20px;
+    }
+
+    .pickarry-summary-card {
+        padding: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .pickarry-earnings-modal {
+        width: 98%;
+        max-height: 95vh;
+        border-radius: 8px;
+    }
+
+    .pickarry-modal-header {
+        padding: 16px 20px;
+    }
+
+    .pickarry-modal-header h2 {
+        font-size: 18px;
+    }
+
+    .pickarry-summary-cards {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .pickarry-summary-card {
+        padding: 12px;
+    }
+
+    .pickarry-summary-amount {
+        font-size: 16px;
+    }
+
+    .pickarry-list-header {
+        padding: 12px 16px;
+    }
+
+    .pickarry-list-header h3 {
+        font-size: 14px;
+    }
+
+    .pickarry-table-header-cell,
+    .pickarry-table-cell {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+}

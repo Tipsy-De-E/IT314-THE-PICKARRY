@@ -1,0 +1,836 @@
+/* Customer Menu Styles - Based on Customer Home */
+
+/* Base styles from customer-home.css */
+.customer-home {
+    min-height: 100vh;
+    background: #000000;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.customer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(31, 41, 55, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-icon {
+    position: relative;
+    width: 40px;
+    height: 24px;
+}
+
+/* Delivery Person */
+.delivery-person {
+    position: absolute;
+    top: 2px;
+    left: 10px;
+    z-index: 3;
+}
+
+.person-body {
+    width: 8px;
+    height: 12px;
+    background: #14b8a6;
+    border-radius: 4px;
+    position: relative;
+}
+
+.person-head {
+    width: 6px;
+    height: 6px;
+    background: #14b8a6;
+    border-radius: 50%;
+    position: absolute;
+    top: -4px;
+    left: 1px;
+}
+
+.delivery-bag {
+    width: 6px;
+    height: 4px;
+    background: #14b8a6;
+    border-radius: 2px;
+    position: absolute;
+    top: 2px;
+    right: -8px;
+}
+
+/* Scooter */
+.scooter {
+    position: absolute;
+    bottom: 0;
+    left: 4px;
+}
+
+.scooter-body {
+    width: 20px;
+    height: 10px;
+    background: #3b82f6;
+    border-radius: 5px;
+    position: relative;
+}
+
+.wheel {
+    width: 8px;
+    height: 8px;
+    background: #1f2937;
+    border: 1px solid #14b8a6;
+    border-radius: 50%;
+    position: absolute;
+    bottom: -4px;
+}
+
+.wheel-front {
+    right: 1px;
+}
+
+.wheel-back {
+    left: 1px;
+}
+
+.brand-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #14b8a6;
+}
+
+.customer-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+    background: #fbbf24;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #1f2937;
+}
+
+.profile-name {
+    font-weight: 500;
+}
+
+.logout-button {
+    color: #14b8a6;
+    background: none;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.logout-button:hover {
+    color: #0d9488;
+}
+
+/* Content Layout */
+.customer-content {
+    display: flex;
+    flex: 1;
+    min-height: calc(100vh - 160px);
+}
+
+/* Sidebar */
+.customer-sidebar {
+    width: 280px;
+    background: rgba(31, 41, 55, 0.95);
+    border-right: 1px solid rgba(75, 85, 99, 0.3);
+    padding: 24px;
+}
+
+.customer-profile-card {
+    background: #1f2937;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+
+.profile-avatar-large {
+    width: 80px;
+    height: 80px;
+    background: #fbbf24;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 32px;
+    color: #1f2937;
+    margin: 0 auto 16px;
+}
+
+.profile-info h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    color: white;
+}
+
+.profile-info p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.customer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #9ca3af;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.nav-item:hover {
+    background: rgba(55, 65, 81, 0.8);
+    color: white;
+}
+
+.nav-item.active {
+    background: #14b8a6;
+    color: white;
+}
+
+.nav-icon {
+    font-size: 20px;
+}
+
+/* Menu Main Content */
+.menu-main-content {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Footer */
+.customer-footer {
+    background: rgba(31, 41, 55, 0.95);
+    border-top: 1px solid rgba(75, 85, 99, 0.3);
+    padding: 40px 24px 20px;
+    text-align: center;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+    max-width: 800px;
+    margin: 0 auto 30px;
+}
+
+.footer-link {
+    color: #14b8a6;
+    text-decoration: none;
+    font-size: 16px;
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: #0d9488;
+}
+
+.footer-copyright {
+    color: #9ca3af;
+    font-size: 14px;
+    border-top: 1px solid rgba(75, 85, 99, 0.3);
+    padding-top: 20px;
+}
+
+/* Courier Status Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.courier-status-modal {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    border-radius: 24px;
+    border: 1px solid rgba(75, 85, 99, 0.3);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideIn 0.4s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px 16px;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.2);
+}
+
+.modal-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f9fafb;
+    margin: 0;
+    background: linear-gradient(135deg, #14b8a6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.close-button {
+    background: rgba(75, 85, 99, 0.2);
+    border: none;
+    border-radius: 12px;
+    padding: 8px;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+.modal-body {
+    padding: 32px;
+    /* text-align: center; */
+}
+
+.status-icon {
+    margin-bottom: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.status-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    padding: 4px;
+    background: linear-gradient(135deg, currentColor, transparent);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+}
+
+.status-approved {
+    color: #10b981;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+}
+
+.status-pending {
+    color: #f59e0b;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+}
+
+.status-rejected {
+    color: #ef4444;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+}
+
+.status-content {
+    margin-bottom: 32px;
+}
+
+.status-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+
+.status-approved .status-title {
+    color: #10b981;
+}
+
+.status-pending .status-title {
+    color: #f59e0b;
+}
+
+.status-rejected .status-title {
+    color: #ef4444;
+}
+
+.status-description {
+    color: #d1d5db;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.application-date {
+    color: #9ca3af;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-button {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    min-width: 140px;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.action-button:hover::before {
+    left: 100%;
+}
+
+.action-button.primary {
+    background: linear-gradient(135deg, #14b8a6, #06b6d4);
+    color: white;
+    box-shadow: 0 4px 15px rgba(20, 184, 166, 0.3);
+}
+
+.action-button.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(20, 184, 166, 0.4);
+}
+
+.action-button.secondary {
+    background: rgba(75, 85, 99, 0.2);
+    color: #d1d5db;
+    border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+.action-button.secondary:hover {
+    background: rgba(75, 85, 99, 0.4);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .customer-content {
+        flex-direction: column;
+    }
+
+    .customer-sidebar {
+        width: 100%;
+        padding: 16px;
+    }
+
+    .customer-nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .nav-item {
+        min-width: 120px;
+        justify-content: center;
+    }
+
+    .menu-main-content {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .customer-header {
+        padding: 12px 16px;
+    }
+
+    .brand-name {
+        font-size: 20px;
+    }
+
+    .header-right {
+        gap: 8px;
+    }
+
+    .profile-name {
+        display: none;
+    }
+
+    .courier-status-modal {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .modal-header {
+        padding: 20px 24px 12px;
+    }
+
+    .modal-header h2 {
+        font-size: 20px;
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .status-title {
+        font-size: 24px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .action-button {
+        width: 100%;
+        max-width: 280px;
+    }
+}
+
+/* Enhanced Profile Avatar Styles */
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fbbf24;
+    /* Solid yellow background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #1f2937;
+    /* Dark text for contrast */
+    border: 2px solid transparent;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.profile-avatar span {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Large Profile Avatar */
+.profile-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #fbbf24;
+    /* Solid yellow background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 32px;
+    color: #1f2937;
+    /* Dark text for contrast */
+    border: 3px solid #14b8a6;
+    /* Teal border */
+    overflow: hidden;
+    flex-shrink: 0;
+    margin: 0 auto 16px;
+}
+
+.profile-avatar-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.profile-avatar-large span {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Profile Avatar in Customer Profile Card */
+.customer-profile-card .profile-avatar-large {
+    background: #fbbf24;
+    /* Solid yellow */
+    border: 3px solid #14b8a6;
+    /* Teal border */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Profile Avatar in Header */
+.customer-header .profile-avatar {
+    background: #fbbf24;
+    /* Solid yellow */
+    border: 2px solid rgba(20, 184, 166, 0.3);
+    /* Semi-transparent teal border */
+}
+
+/* Profile Avatar in Main Content */
+.menu-main-content .profile-avatar {
+    width: 64px;
+    height: 64px;
+    background: #fbbf24;
+    /* Solid yellow */
+    border: 3px solid #14b8a6;
+    /* Teal border */
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.menu-main-content .profile-avatar span {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Hover effects */
+.profile-avatar:hover,
+.profile-avatar-large:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Loading state */
+.profile-avatar.loading,
+.profile-avatar-large.loading {
+    background: #374151;
+    /* Gray background while loading */
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Status indicators for courier */
+.profile-avatar.with-status::after,
+.profile-avatar-large.with-status::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #1f2937;
+}
+
+.profile-avatar.with-status.approved::after,
+.profile-avatar-large.with-status.approved::after {
+    background: #10b981;
+    /* Green for approved */
+}
+
+.profile-avatar.with-status.pending::after,
+.profile-avatar-large.with-status.pending::after {
+    background: #f59e0b;
+    /* Yellow for pending */
+}
+
+.profile-avatar.with-status.rejected::after,
+.profile-avatar-large.with-status.rejected::after {
+    background: #ef4444;
+    /* Red for rejected */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    .profile-avatar span {
+        font-size: 12px;
+    }
+
+    .profile-avatar-large {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+
+    .profile-avatar-large span {
+        font-size: 24px;
+    }
+
+    .menu-main-content .profile-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
+    }
+
+    .menu-main-content .profile-avatar span {
+        font-size: 16px;
+    }
+}
+
+/* Alternative color schemes - you can use these classes for different users */
+.profile-avatar.blue {
+    background: #3b82f6;
+    /* Blue */
+    color: white;
+}
+
+.profile-avatar.green {
+    background: #10b981;
+    /* Green */
+    color: white;
+}
+
+.profile-avatar.purple {
+    background: #8b5cf6;
+    /* Purple */
+    color: white;
+}
+
+.profile-avatar.red {
+    background: #ef4444;
+    /* Red */
+    color: white;
+}
+
+.profile-avatar.teal {
+    background: #14b8a6;
+    /* Teal */
+    color: white;
+}
+
+/* Apply the same color variations to large avatars */
+.profile-avatar-large.blue {
+    background: #3b82f6;
+    color: white;
+}
+
+.profile-avatar-large.green {
+    background: #10b981;
+    color: white;
+}
+
+.profile-avatar-large.purple {
+    background: #8b5cf6;
+    color: white;
+}
+
+.profile-avatar-large.red {
+    background: #ef4444;
+    color: white;
+}
+
+.profile-avatar-large.teal {
+    background: #14b8a6;
+    color: white;
+}

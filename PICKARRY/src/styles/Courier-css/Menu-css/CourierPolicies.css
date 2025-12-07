@@ -1,0 +1,553 @@
+/* Courier Policies Styles */
+.courier-policies {
+    min-height: 100vh;
+    background: black;
+    color: white;
+}
+
+.policies-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.policies-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 0 8px;
+    position: relative;
+}
+
+.back-button {
+    position: absolute;
+    left: 0;
+    background: none;
+    border: none;
+    color: #14b8a6;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.header-content {
+    flex: 1;
+}
+
+.title-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    margin-left: 40px;
+}
+
+.title-icon {
+    width: 32px;
+    height: 32px;
+    color: #2dd4bf;
+}
+
+.header-content h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.subtitle {
+    color: #94a3b8;
+    font-size: 16px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Navigation Tabs */
+.policies-navigation {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 8px;
+    border: 1px solid #334155;
+}
+
+.nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.nav-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+    transform: translateY(-2px);
+}
+
+.nav-tab.active {
+    background: #2dd4bf;
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+}
+
+.nav-text {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Main Content Layout */
+.policies-main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.policy-content-section {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 24px;
+}
+
+/* Bottom Actions Section */
+.bottom-actions-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 24px;
+}
+
+/* Policy Header */
+.policy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #334155;
+}
+
+.policy-title-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.policy-icon {
+    background: linear-gradient(135deg, rgba(45, 212, 191, 0.2), rgba(45, 212, 191, 0.1));
+    border-radius: 12px;
+    padding: 12px;
+    color: #2dd4bf;
+    border: 1px solid rgba(45, 212, 191, 0.2);
+}
+
+.policy-title-section h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 8px 0;
+}
+
+.policy-description {
+    color: #94a3b8;
+    font-size: 16px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.download-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: rgba(45, 212, 191, 0.1);
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    border-radius: 12px;
+    color: #2dd4bf;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.download-button:hover {
+    background: rgba(45, 212, 191, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Policy Items */
+.policy-items-container {
+    margin-bottom: 32px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #334155;
+}
+
+.policy-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.policy-item {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.policy-item:hover {
+    border-color: #475569;
+    transform: translateX(4px);
+}
+
+.item-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.item-icon {
+    width: 20px;
+    height: 20px;
+    color: #2dd4bf;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.item-text {
+    color: #e2e8f0;
+    font-size: 15px;
+    line-height: 1.5;
+    flex: 1;
+}
+
+/* Reminders Section */
+.reminders-section {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.reminders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.reminders-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 20px;
+    padding: 6px 12px;
+    color: #fca5a5;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.reminders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.reminder-card {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.reminder-card:hover {
+    transform: translateY(-2px);
+}
+
+.reminder-card.warning {
+    border-color: rgba(245, 158, 11, 0.4);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), transparent);
+}
+
+.reminder-card.critical {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent);
+}
+
+.reminder-card.success {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent);
+}
+
+.reminder-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.reminder-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.reminder-card.warning .reminder-icon {
+    color: #f59e0b;
+}
+
+.reminder-card.critical .reminder-icon {
+    color: #ef4444;
+}
+
+.reminder-card.success .reminder-icon {
+    color: #10b981;
+}
+
+.reminder-title {
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.reminder-card p {
+    color: #94a3b8;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Bottom Actions Section */
+.bottom-actions-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.action-card,
+.support-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.action-card h4,
+.support-card h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 16px 0;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.action-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #475569;
+    transform: translateY(-1px);
+}
+
+.support-card p {
+    color: #94a3b8;
+    font-size: 14px;
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+}
+
+.support-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.support-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #334155;
+}
+
+.support-item:last-child {
+    border-bottom: none;
+}
+
+.support-label {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.support-value {
+    color: #2dd4bf;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.support-button {
+    width: 100%;
+    padding: 12px;
+    background: rgba(45, 212, 191, 0.1);
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    border-radius: 10px;
+    color: #2dd4bf;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.support-button:hover {
+    background: rgba(45, 212, 191, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .bottom-actions-section {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .policies-navigation {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .policies-container {
+        padding: 16px;
+    }
+
+    .policies-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .back-button {
+        align-self: flex-start;
+    }
+
+    .policy-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .reminders-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header-content h1 {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .policies-container {
+        padding: 12px;
+    }
+
+    .policies-navigation {
+        grid-template-columns: 1fr;
+    }
+
+    .policy-content-section,
+    .action-card,
+    .support-card {
+        padding: 16px;
+    }
+
+    .policy-item {
+        padding: 12px;
+    }
+
+    .title-section h1 {
+        font-size: 22px;
+    }
+}

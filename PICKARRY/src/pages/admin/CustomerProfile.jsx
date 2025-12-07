@@ -725,8 +725,8 @@ const CustomerProfile = () => {
                         type="button"
                         onClick={() => setSuspensionDuration(option.value)}
                         className={`p-3 rounded-lg border transition-colors ${suspensionDuration === option.value
-                            ? 'bg-teal-600 border-teal-500 text-white'
-                            : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                          ? 'bg-teal-600 border-teal-500 text-white'
+                          : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                           }`}
                       >
                         {option.label}

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Phone, Mail, MapPin, CreditCard, Car, Palette,
   MoreVertical, UserX, CheckCircle, Clock, Package, AlertCircle,
-  XCircle, X, Download, ZoomIn, ZoomOut, RotateCcw, Calendar
+  XCircle, X, Download, ZoomIn, ZoomOut, RotateCcw, Calendar, UserCheck
 } from 'lucide-react';
 import { supabase } from '../../utils/supabaseClient';
 
@@ -70,10 +70,12 @@ const CourierProfile = () => {
   // Fixed suspension check function for couriers
   const checkActiveCourierSuspension = async (courierId) => {
     try {
+      const numericCourierId = parseInt(courierId);
+
       const { data, error } = await supabase
         .from('courier_suspensions')
         .select('*')
-        .eq('courier_id', courierId)
+        .eq('courier_id', numericCourierId)
         .eq('status', 'active');
 
       if (error) {
@@ -89,9 +91,8 @@ const CourierProfile = () => {
   };
 
   // Helper function to log status changes
-  const logStatusChange = async (oldStatus, newStatus, reason = '', notes = '') => {
+  const logStatusChange = async (oldStatus, newStatus, reason = '', notes = '', table = 'courier') => {
     try {
-      // Get current session
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -100,23 +101,27 @@ const CourierProfile = () => {
       }
 
       const actionBy = session.user.id;
+      const tableName = table === 'customer' ? 'customer_status_history' : 'courier_status_history';
+      const idField = table === 'customer' ? 'customer_id' : 'courier_id';
 
-      const { error } = await supabase
-        .from('courier_status_history')
-        .insert({
-          courier_id: id,
-          old_status: oldStatus,
-          new_status: newStatus,
-          reason: reason,
-          notes: notes,
-          action_by: actionBy
-        });
+      try {
+        const { error } = await supabase
+          .from(tableName)
+          .insert({
+            [idField]: parseInt(id),
+            old_status: oldStatus,
+            new_status: newStatus,
+            reason: reason,
+            notes: notes,
+            action_by: actionBy,
+            created_at: new Date().toISOString()
+          });
 
-      if (error) {
-        console.error('Error logging status change:', error);
-        if (error.message.includes('does not exist')) {
-          console.warn('courier_status_history table does not exist yet.');
+        if (error) {
+          console.error(`Error logging ${table} status change:`, error);
         }
+      } catch (error) {
+        console.warn(`Could not log ${table} status change:`, error);
       }
     } catch (error) {
       console.error('Error logging status change:', error);
@@ -124,9 +129,8 @@ const CourierProfile = () => {
   };
 
   // Helper function for suspensions
-  const logSuspension = async (reason, notes = '', durationDays = null, isPermanent = false) => {
+  const logSuspension = async (reason, notes = '', durationDays = null, isPermanent = false, userType = 'courier') => {
     try {
-      // Get current session
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -144,7 +148,6 @@ const CourierProfile = () => {
       }
 
       const suspensionData = {
-        courier_id: parseInt(id),
         suspension_reason: reason,
         suspension_notes: notes,
         suspended_by: suspendedBy,
@@ -152,33 +155,110 @@ const CourierProfile = () => {
         scheduled_lift_date: scheduledLiftDate,
         is_permanent: isPermanent,
         status: 'active',
-        created_at: new Date().toISOString(),
+        user_type: userType,
+        created_at: new Date().toISOString()
+      };
+
+      // Add the appropriate ID field based on user type
+      if (userType === 'courier') {
+        suspensionData.courier_id = parseInt(id);
+      } else {
+        suspensionData.customer_id = parseInt(id);
+      }
+
+      console.log(`Attempting to insert ${userType} suspension data:`, suspensionData);
+
+      const tableName = userType === 'courier' ? 'courier_suspensions' : 'customer_suspensions';
+      const { error } = await supabase
+        .from(tableName)
+        .insert(suspensionData);
+
+      if (error) {
+        console.error(`Error inserting ${userType} suspension:`, error);
+        throw error;
+      }
+
+      console.log(`${userType} suspension logged successfully`);
+      return suspensionData;
+    } catch (error) {
+      console.error(`Error logging ${userType} suspension:`, error);
+      throw error;
+    }
+  };
+
+  // Find associated customer account for this courier
+  const findAssociatedCustomer = async () => {
+    try {
+      // First get the courier's email
+      const { data: courier } = await supabase
+        .from('couriers')
+        .select('email')
+        .eq('id', parseInt(id))
+        .single();
+
+      if (!courier?.email) return null;
+
+      // Find customer with same email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('id, status')
+        .eq('email', courier.email)
+        .single();
+
+      return customer;
+    } catch (error) {
+      console.error('Error finding associated customer:', error);
+      return null;
+    }
+  };
+
+  // Function to update both courier and customer status
+  const updateUserStatus = async (statusType, newStatus) => {
+    try {
+      console.log(`Updating ${statusType} status to: ${newStatus} for user ${id}`);
+
+      const updateData = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
-        .from('courier_suspensions')
-        .insert([suspensionData])
-        .select();
+      // For couriers, update both application_status and status fields
+      if (statusType === 'courier') {
+        updateData.application_status = newStatus;
+        updateData.status = newStatus;
 
-      if (error) {
-        console.error('Error logging suspension:', error);
-        // Try without the select() if it fails
-        const { error: insertError } = await supabase
-          .from('courier_suspensions')
-          .insert([suspensionData]);
+        const { error } = await supabase
+          .from('couriers')
+          .update(updateData)
+          .eq('id', parseInt(id));
 
-        if (insertError) {
-          console.error('Error inserting suspension (fallback):', insertError);
-          throw insertError;
+        if (error) throw error;
+
+        // Also update the associated customer if exists
+        const customer = await findAssociatedCustomer();
+        if (customer) {
+          console.log(`Found associated customer ${customer.id}, updating to ${newStatus}`);
+
+          const { error: customerError } = await supabase
+            .from('customers')
+            .update({
+              status: newStatus,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', customer.id);
+
+          if (customerError) {
+            console.error('Error updating customer status:', customerError);
+          } else {
+            console.log('Customer status updated successfully');
+          }
         }
-        return [suspensionData]; // Return the data we tried to insert
       }
 
-      return data;
+      console.log(`${statusType} status updated successfully`);
+      return { success: true };
     } catch (error) {
-      console.error('Error logging suspension:', error);
-      throw error;
+      console.error(`Error updating ${statusType} status:`, error);
+      return { success: false, error };
     }
   };
 
@@ -186,30 +266,26 @@ const CourierProfile = () => {
     try {
       setLoading(true);
 
-      // Fetch courier basic info
       const { data: courier, error } = await supabase
         .from('couriers')
         .select('*')
-        .eq('id', id)
+        .eq('id', parseInt(id))
         .single();
 
       if (error) throw error;
 
       if (courier) {
-        // Fetch active suspension if exists - using the fixed function
         const activeSuspension = await checkActiveCourierSuspension(courier.id);
 
-        // Fetch orders for this courier
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
           .select('*')
-          .eq('courier_id', id)
+          .eq('courier_id', courier.id)
           .order('created_at', { ascending: false })
           .limit(10);
 
         if (ordersError) console.error('Error fetching orders:', ordersError);
 
-        // Calculate order summary
         const ordersList = orders || [];
         const orderSummary = {
           total: ordersList.length,
@@ -218,7 +294,6 @@ const CourierProfile = () => {
           pending: ordersList.filter(order => order.status === 'pending' || order.status === 'accepted').length
         };
 
-        // Format recent orders
         const recentOrders = ordersList.map(order => ({
           orderId: order.order_id || `ORD-${order.id}`,
           customer: order.customer_name || 'Customer',
@@ -231,11 +306,15 @@ const CourierProfile = () => {
           status: order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Pending'
         }));
 
+        // Also check if there's an associated customer
+        const associatedCustomer = await findAssociatedCustomer();
+
         setCourierData({
           ...courier,
           orderSummary,
           recentOrders,
-          activeSuspension
+          activeSuspension,
+          associatedCustomer
         });
       }
     } catch (error) {
@@ -249,23 +328,27 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
-      const { error } = await supabase
-        .from('couriers')
-        .update({
-          application_status: 'approved',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
+      const result = await updateUserStatus('courier', 'approved');
+      if (!result.success) throw result.error;
 
-      if (error) throw error;
-
-      // Log the status change
       await logStatusChange(courierData.application_status, 'approved');
 
-      // Update local state
+      // Update background check status as well
+      const { error: bgCheckError } = await supabase
+        .from('couriers')
+        .update({
+          background_check_status: 'approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', parseInt(id));
+
+      if (bgCheckError) console.error('Error updating background check:', bgCheckError);
+
       setCourierData(prev => ({
         ...prev,
-        application_status: 'approved'
+        application_status: 'approved',
+        status: 'approved',
+        background_check_status: 'approved'
       }));
 
       alert('Courier approved successfully!');
@@ -285,22 +368,15 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
-      const { error } = await supabase
-        .from('couriers')
-        .update({
-          application_status: 'rejected',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
+      const result = await updateUserStatus('courier', 'rejected');
+      if (!result.success) throw result.error;
 
-      if (error) throw error;
-
-      // Log the status change with reason
       await logStatusChange(courierData.application_status, 'rejected', rejectionReason);
 
       setCourierData(prev => ({
         ...prev,
-        application_status: 'rejected'
+        application_status: 'rejected',
+        status: 'rejected'
       }));
 
       alert('Courier rejected successfully!');
@@ -321,30 +397,34 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
-      const { error } = await supabase
-        .from('couriers')
-        .update({
-          application_status: 'suspended',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) throw error;
+      // Update courier status to suspended
+      const result = await updateUserStatus('courier', 'suspended');
+      if (!result.success) throw result.error;
 
       // Get selected reason details
       const selectedReason = suspensionReasons.find(r => r.reason === suspensionReason);
       const durationDays = isPermanentSuspension ? 0 : suspensionDuration;
 
-      // Log both status change and suspension details
-      await Promise.all([
-        logStatusChange(courierData.application_status, 'suspended', suspensionReason, suspensionNotes),
-        logSuspension(suspensionReason, suspensionNotes, durationDays, isPermanentSuspension)
-      ]);
+      // Log suspension for courier
+      await logSuspension(suspensionReason, suspensionNotes, durationDays, isPermanentSuspension, 'courier');
+
+      // Log status change for courier
+      await logStatusChange(courierData.application_status, 'suspended', suspensionReason, suspensionNotes, 'courier');
+
+      // Find associated customer and log their suspension too
+      const customer = await findAssociatedCustomer();
+      if (customer) {
+        // Log customer suspension
+        await logSuspension(suspensionReason, `Courier suspension - ${suspensionNotes}`, durationDays, isPermanentSuspension, 'customer');
+
+        // Log customer status change
+        await logStatusChange(customer.status, 'suspended', `Associated courier suspended: ${suspensionReason}`, suspensionNotes, 'customer');
+      }
 
       // Refresh courier data
       await fetchCourierData();
 
-      alert('Courier suspended successfully!');
+      alert('Courier suspended successfully! Associated customer account has also been suspended.');
       setShowSuspendModal(false);
       setSuspensionReason('');
       setSuspensionNotes('');
@@ -363,24 +443,17 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
-      const { error } = await supabase
-        .from('couriers')
-        .update({
-          application_status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) throw error;
+      // Update courier status to active
+      const result = await updateUserStatus('courier', 'active');
+      if (!result.success) throw result.error;
 
       // Log status change
-      await logStatusChange(courierData.application_status, 'active', 'Account reactivated');
+      await logStatusChange(courierData.application_status, 'active', 'Account reactivated', '', 'courier');
 
       // Update suspension record if exists
       try {
         const activeSuspension = await checkActiveCourierSuspension(id);
         if (activeSuspension) {
-          // Get current session
           const { data: { session } } = await supabase.auth.getSession();
 
           await supabase
@@ -397,10 +470,24 @@ const CourierProfile = () => {
         console.warn('Could not update suspension record:', suspensionError);
       }
 
+      // Find associated customer and activate them too
+      const customer = await findAssociatedCustomer();
+      if (customer && customer.status === 'suspended') {
+        await supabase
+          .from('customers')
+          .update({
+            status: 'active',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.id);
+
+        await logStatusChange('suspended', 'active', 'Associated courier reactivated', '', 'customer');
+      }
+
       // Refresh courier data
       await fetchCourierData();
 
-      alert('Courier activated successfully!');
+      alert('Courier activated successfully! Associated customer account has also been activated.');
 
     } catch (error) {
       console.error('Error activating courier:', error);
@@ -485,7 +572,7 @@ const CourierProfile = () => {
   };
 
   const downloadImage = async () => {
-    if (!courierData.license_image_url) return;
+    if (!courierData?.license_image_url) return;
 
     try {
       const response = await fetch(courierData.license_image_url);
@@ -545,7 +632,7 @@ const CourierProfile = () => {
   };
 
   const downloadRegistrationImage = async () => {
-    if (!courierData.vehicle_registration_url) return;
+    if (!courierData?.vehicle_registration_url) return;
 
     try {
       const response = await fetch(courierData.vehicle_registration_url);
@@ -565,43 +652,33 @@ const CourierProfile = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'approved':
-      case 'delivered':
-      case 'completed':
-        return 'bg-green-500';
-      case 'pending':
-        return 'bg-yellow-500';
-      case 'suspended':
-      case 'rejected':
-      case 'canceled':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
+    const statusLower = status?.toLowerCase();
+    if (['active', 'approved', 'delivered', 'completed'].includes(statusLower)) {
+      return 'bg-green-500';
+    } else if (['pending', 'processing'].includes(statusLower)) {
+      return 'bg-yellow-500';
+    } else if (['suspended', 'inactive', 'rejected', 'canceled'].includes(statusLower)) {
+      return 'bg-red-500';
     }
+    return 'bg-gray-500';
   };
 
   const getStatusTextColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'approved':
-      case 'delivered':
-      case 'completed':
-        return 'text-green-400';
-      case 'pending':
-        return 'text-yellow-400';
-      case 'suspended':
-      case 'rejected':
-      case 'canceled':
-        return 'text-red-400';
-      default:
-        return 'text-gray-400';
+    const statusLower = status?.toLowerCase();
+    if (['active', 'approved', 'delivered', 'completed'].includes(statusLower)) {
+      return 'text-green-400';
+    } else if (['pending', 'processing'].includes(statusLower)) {
+      return 'text-yellow-400';
+    } else if (['suspended', 'inactive', 'rejected', 'canceled'].includes(statusLower)) {
+      return 'text-red-400';
     }
+    return 'text-gray-400';
   };
 
   const getActionMenuOptions = () => {
-    const status = courierData?.application_status?.toLowerCase();
+    if (!courierData) return [];
+
+    const status = courierData.application_status?.toLowerCase();
     const options = [];
 
     if (status === 'pending') {
@@ -636,6 +713,42 @@ const CourierProfile = () => {
         icon: CheckCircle,
         className: 'text-green-400 hover:bg-green-500 hover:text-white',
         onClick: handleActivate
+      });
+    }
+
+    // Add background check approval option if pending
+    if (courierData.background_check_status === 'pending' && (status === 'approved' || status === 'active')) {
+      options.push({
+        action: 'approve_background',
+        label: 'Approve Background Check',
+        icon: UserCheck,
+        className: 'text-blue-400 hover:bg-blue-500 hover:text-white',
+        onClick: async () => {
+          try {
+            setUpdating(true);
+            const { error } = await supabase
+              .from('couriers')
+              .update({
+                background_check_status: 'approved',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', parseInt(id));
+
+            if (error) throw error;
+
+            setCourierData(prev => ({
+              ...prev,
+              background_check_status: 'approved'
+            }));
+
+            alert('Background check approved successfully!');
+          } catch (error) {
+            console.error('Error approving background check:', error);
+            alert(`Error: ${error.message}`);
+          } finally {
+            setUpdating(false);
+          }
+        }
       });
     }
 
@@ -740,6 +853,27 @@ const CourierProfile = () => {
               </p>
             </div>
           </div>
+
+          {/* Associated Customer Info */}
+          {courierData.associatedCustomer && (
+            <div className="mt-4 p-4 bg-blue-900 border border-blue-700 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCheck className="w-5 h-5 text-blue-400" />
+                <h4 className="text-blue-300 font-semibold">Associated Customer Account</h4>
+              </div>
+              <div className="text-blue-200 text-sm space-y-1">
+                <p><strong>Customer ID:</strong> {courierData.associatedCustomer.id}</p>
+                <p><strong>Status:</strong>
+                  <span className={`ml-2 capitalize ${getStatusTextColor(courierData.associatedCustomer.status)}`}>
+                    {courierData.associatedCustomer.status || 'active'}
+                  </span>
+                </p>
+                <p className="text-blue-300 text-xs italic">
+                  Note: Suspending/activating this courier will also affect their customer account.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Active Suspension Info */}
           {courierData.activeSuspension && (
@@ -1251,6 +1385,16 @@ const CourierProfile = () => {
               The user will not be able to log in or use the services until reactivated.
             </p>
 
+            {courierData.associatedCustomer && (
+              <div className="mb-4 p-3 bg-blue-900 border border-blue-700 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-300">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="font-medium">Note:</span>
+                  <span>This will also suspend the associated customer account (ID: {courierData.associatedCustomer.id})</span>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-6 mb-6">
               {/* Suspension Reason */}
               <div>
@@ -1313,8 +1457,8 @@ const CourierProfile = () => {
                         type="button"
                         onClick={() => setSuspensionDuration(option.value)}
                         className={`p-3 rounded-lg border transition-colors ${suspensionDuration === option.value
-                            ? 'bg-teal-600 border-teal-500 text-white'
-                            : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                          ? 'bg-teal-600 border-teal-500 text-white'
+                          : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                           }`}
                       >
                         {option.label}
@@ -1325,7 +1469,7 @@ const CourierProfile = () => {
               )}
 
               {/* Lift Date Display */}
-              {!isPermanentSuspension && suspensionDuration > 0 && (
+              {/* {!isPermanentSuspension && suspensionDuration > 0 && (
                 <div className="p-3 bg-blue-900 border border-blue-700 rounded-lg">
                   <div className="flex items-center gap-2 text-blue-300">
                     <Calendar className="w-4 h-4" />
@@ -1333,7 +1477,7 @@ const CourierProfile = () => {
                     <span>{calculateLiftDate()}</span>
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Additional Notes */}
               <div>

@@ -70,6 +70,7 @@ const CustomerHome = () => {
   const [mapMode, setMapMode] = useState('view'); // 'view', 'pickup', 'delivery'
   const [activeLocationField, setActiveLocationField] = useState(null); // 'pickup' or 'delivery'
   const [pendingLocation, setPendingLocation] = useState(null); // Store location before confirmation
+  const [showLocationConfirmModal, setShowLocationConfirmModal] = useState(false); // NEW: For custom location confirmation
 
   // NEW STATE FOR REAL-TIME UPDATES
   const [currentOrderId, setCurrentOrderId] = useState(null);
@@ -325,7 +326,7 @@ const CustomerHome = () => {
     setDeliveryCoords({ lat: suggestion.lat, lng: suggestion.lng });
   };
 
-  // ENHANCED: Handle map location selection with confirmation
+  // UPDATED: Handle map location selection with custom modal confirmation
   const handleMapLocationSelect = (address, coordinates) => {
     // Store the pending location for confirmation
     setPendingLocation({
@@ -334,14 +335,8 @@ const CustomerHome = () => {
       field: activeLocationField
     });
 
-    // Show confirmation dialog
-    if (window.confirm(`Set ${activeLocationField} location to:\n${address}\n\nClick OK to confirm or Cancel to choose another location.`)) {
-      confirmLocationSelection(address, coordinates);
-    } else {
-      // User cancelled, keep pinpointing mode active
-      setPendingLocation(null);
-      // Don't reset the mode - allow user to select another location
-    }
+    // Show custom confirmation modal instead of browser confirm
+    setShowLocationConfirmModal(true);
   };
 
   // NEW: Confirm location selection and update the appropriate field
@@ -360,6 +355,7 @@ const CustomerHome = () => {
     setMapMode('view');
     setActiveLocationField(null);
     setPendingLocation(null);
+    setShowLocationConfirmModal(false);
 
     // Close mobile map if open
     if (isMobile) {
@@ -370,6 +366,13 @@ const CustomerHome = () => {
     if (isMobile) {
       alert(`${activeLocationField === 'pickup' ? 'Pickup' : 'Delivery'} location set successfully!`);
     }
+  };
+
+  // NEW: Cancel location selection
+  const cancelLocationSelection = () => {
+    setPendingLocation(null);
+    setShowLocationConfirmModal(false);
+    // Stay in pinpointing mode for another selection
   };
 
   // ENHANCED: Start pinpointing mode for pickup
@@ -395,11 +398,13 @@ const CustomerHome = () => {
     setMapMode('view');
     setActiveLocationField(null);
     setPendingLocation(null);
+    setShowLocationConfirmModal(false);
   };
 
   // NEW: Clear pending location and stay in pinpointing mode
   const clearPendingLocation = () => {
     setPendingLocation(null);
+    setShowLocationConfirmModal(false);
   };
 
   // Update the estimated distance calculation
@@ -890,6 +895,7 @@ const CustomerHome = () => {
       setMapMode('view');
       setActiveLocationField(null);
       setPendingLocation(null);
+      setShowLocationConfirmModal(false);
     }
   };
 
@@ -1322,8 +1328,60 @@ const CustomerHome = () => {
             setMapMode('view');
             setActiveLocationField(null);
             setPendingLocation(null);
+            setShowLocationConfirmModal(false);
           }} />
         </>
+      )}
+
+      {/* Location Confirmation Modal */}
+      {showLocationConfirmModal && pendingLocation && (
+        <div className="modal-overlay" onClick={cancelLocationSelection}>
+          <div className="location-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="location-confirm-header">
+              <MapPin size={24} className="location-confirm-icon" />
+              <h3 className="text-xl font-bold text-white">Set {pendingLocation.field === 'pickup' ? 'Pickup' : 'Delivery'} Location</h3>
+              <p className="text-gray-300 mt-2">Are you sure you want to set this location?</p>
+            </div>
+
+            <div className="location-confirm-body">
+              <div className="selected-location-display">
+                <div className="location-address-box">
+                  <MapPin size={16} className="text-teal-400" />
+                  <div className="location-address-text">
+                    <strong className="text-white font-semibold">Selected Address:</strong>
+                    <p className="text-gray-200 mt-1 text-sm">{pendingLocation.address}</p>
+                  </div>
+                </div>
+
+                <div className="location-coordinates-box">
+                  <div className="coordinate-item">
+                    <span className="coordinate-label text-gray-400">Latitude:</span>
+                    <span className="coordinate-value text-teal-300">{pendingLocation.coordinates.lat.toFixed(6)}</span>
+                  </div>
+                  <div className="coordinate-item">
+                    <span className="coordinate-label text-gray-400">Longitude:</span>
+                    <span className="coordinate-value text-teal-300">{pendingLocation.coordinates.lng.toFixed(6)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="location-confirm-actions">
+                <button
+                  className="location-confirm-btn confirm"
+                  onClick={() => confirmLocationSelection(pendingLocation.address, pendingLocation.coordinates)}
+                >
+                  Yes, Set This Location
+                </button>
+                <button
+                  className="location-confirm-btn cancel"
+                  onClick={cancelLocationSelection}
+                >
+                  No, Choose Another
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modals */}
@@ -1423,7 +1481,7 @@ const CustomerHome = () => {
                 </>
               ) : (
                 <>
-                  <h2>Waiting for Courier</h2>
+                  <h2>Order Submitted</h2>
                   <p>Your service request has been submitted. We're finding the best courier for your delivery.</p>
                 </>
               )}
@@ -1501,6 +1559,146 @@ const CustomerHome = () => {
           onClose={() => setShowRemarksModal(false)}
         />
       )}
+
+      {/* Add CSS for the location confirmation modal */}
+      <style jsx>{`
+        .location-confirm-modal {
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 500px;
+          width: 90%;
+          margin: 20px;
+          border: 2px solid #14b8a6;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          position: relative;
+          z-index: 1000;
+        }
+
+        .location-confirm-header {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+
+        .location-confirm-icon {
+          color: #14b8a6;
+          margin: 0 auto 12px;
+        }
+
+        .selected-location-display {
+          background: rgba(30, 41, 59, 0.8);
+          border-radius: 12px;
+          padding: 20px;
+          margin-bottom: 24px;
+          border: 1px solid #334155;
+        }
+
+        .location-address-box {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .location-address-text {
+          flex: 1;
+        }
+
+        .location-coordinates-box {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          background: rgba(15, 23, 42, 0.8);
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid #475569;
+        }
+
+        .coordinate-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .coordinate-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .coordinate-value {
+          font-family: monospace;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .location-confirm-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 24px;
+        }
+
+        .location-confirm-btn {
+          padding: 16px;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 16px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border: none;
+          width: 100%;
+        }
+
+        .location-confirm-btn.confirm {
+          background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+          color: white;
+        }
+
+        .location-confirm-btn.confirm:hover {
+          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(20, 184, 166, 0.3);
+        }
+
+        .location-confirm-btn.cancel {
+          background: rgba(71, 85, 105, 0.8);
+          color: #e2e8f0;
+          border: 1px solid #475569;
+        }
+
+        .location-confirm-btn.cancel:hover {
+          background: rgba(100, 116, 139, 0.8);
+          transform: translateY(-2px);
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(5px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+          .location-confirm-modal {
+            padding: 20px;
+            margin: 10px;
+          }
+
+          .location-coordinates-box {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   );
 };

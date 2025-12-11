@@ -223,6 +223,8 @@ const CourierProfile = () => {
 
       // For couriers, update both application_status and status fields
       if (statusType === 'courier') {
+        // This is the FIX - always update application_status to the new status
+        // For activation, we need to set it to 'approved' not 'active'
         updateData.application_status = newStatus;
         updateData.status = newStatus;
 
@@ -328,6 +330,7 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
+      // For approval, we set application_status to 'approved'
       const result = await updateUserStatus('courier', 'approved');
       if (!result.success) throw result.error;
 
@@ -397,7 +400,7 @@ const CourierProfile = () => {
     try {
       setUpdating(true);
 
-      // Update courier status to suspended
+      // Update courier status to suspended (this updates both application_status and status)
       const result = await updateUserStatus('courier', 'suspended');
       if (!result.success) throw result.error;
 
@@ -439,16 +442,18 @@ const CourierProfile = () => {
     }
   };
 
+  // FIXED: This is the corrected handleActivate function
   const handleActivate = async () => {
     try {
       setUpdating(true);
 
-      // Update courier status to active
-      const result = await updateUserStatus('courier', 'active');
+      // IMPORTANT FIX: When activating a suspended courier, we need to set application_status to 'approved' not 'active'
+      // This is what allows them to switch to courier mode in CustomerMenu
+      const result = await updateUserStatus('courier', 'approved');
       if (!result.success) throw result.error;
 
-      // Log status change
-      await logStatusChange(courierData.application_status, 'active', 'Account reactivated', '', 'courier');
+      // Log status change from 'suspended' to 'approved'
+      await logStatusChange(courierData.application_status, 'approved', 'Account reactivated', '', 'courier');
 
       // Update suspension record if exists
       try {
@@ -1467,17 +1472,6 @@ const CourierProfile = () => {
                   </div>
                 </div>
               )}
-
-              {/* Lift Date Display */}
-              {/* {!isPermanentSuspension && suspensionDuration > 0 && (
-                <div className="p-3 bg-blue-900 border border-blue-700 rounded-lg">
-                  <div className="flex items-center gap-2 text-blue-300">
-                    <Calendar className="w-4 h-4" />
-                    <span className="font-medium">Scheduled Lift Date:</span>
-                    <span>{calculateLiftDate()}</span>
-                  </div>
-                </div>
-              )} */}
 
               {/* Additional Notes */}
               <div>

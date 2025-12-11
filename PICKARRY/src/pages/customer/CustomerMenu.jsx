@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Bell, Bike, Info, Globe, ChevronRight, Home, ShoppingCart, Menu, MessageCircle, CheckCircle, Clock, X, User, Edit, Phone, Mail, MapPin, Calendar, Truck, FileText, Shield, Package, CreditCard, Lock, HelpCircle } from 'lucide-react';
+import { Settings, Bell, Bike, Info, Globe, ChevronRight, Home, ShoppingCart, Menu, MessageCircle, CheckCircle, Clock, X, User, Edit, Phone, Mail, MapPin, Calendar, Truck, FileText, Shield, Package, CreditCard, Lock, HelpCircle, AlertCircle } from 'lucide-react';
 import { clearUserSession, getCurrentUser, setUserSession } from '../../utils/auth';
 import { supabase } from '../../utils/supabaseClient';
 import logo from '../../assets/images/LOGO.png';
@@ -21,7 +21,9 @@ const CustomerMenu = () => {
   const [courierStatus, setCourierStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCourierStatusModal, setShowCourierStatusModal] = useState(false);
+  const [showCourierSuspensionModal, setShowCourierSuspensionModal] = useState(false);
   const [profileImage, setProfileImage] = useState('');
+  const [suspensionData, setSuspensionData] = useState(null);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -123,28 +125,92 @@ const CustomerMenu = () => {
     }
   };
 
-  // Check courier application status
+  // Enhanced check courier application status with suspension check
   const checkCourierStatus = async () => {
     try {
       const session = getCurrentUser();
       if (!session) return;
 
-      const { data: courierData, error } = await supabase
+      // First, get courier basic info
+      const { data: courierData, error: courierError } = await supabase
         .from('couriers')
-        .select('application_status, background_check_status, created_at, updated_at')
+        .select('application_status, background_check_status, created_at, updated_at, id')
         .eq('email', session.email)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
-        console.error('Error checking courier status:', error);
+      if (courierError && courierError.code !== 'PGRST116') {
+        console.error('Error checking courier status:', courierError);
         return;
       }
 
-      setCourierStatus(courierData);
+      // If we have courier data, check for suspensions
+      if (courierData) {
+        console.log('Courier found, ID:', courierData.id);
 
-      // Automatically update session if already approved
-      if (courierData && courierData.application_status === 'approved') {
-        updateUserSessionToCourier();
+        // Try to get active suspension for this courier
+        let activeSuspension = null;
+
+        // Try different table/column name combinations
+        try {
+          // Option 1: Try with courier_suspensions table
+          const { data: suspensionData, error: suspensionError } = await supabase
+            .from('courier_suspensions')
+            .select('*')
+            .eq('courier_id', courierData.id)
+            .eq('status', 'active')
+            .maybeSingle(); // Use maybeSingle instead of single to avoid throwing error if no data
+
+          if (suspensionError) {
+            console.error('Error checking courier_suspensions:', suspensionError);
+
+            // If table doesn't exist or has different structure, try alternative approach
+            // Check if there's a general suspensions table
+            try {
+              const { data: altSuspensionData } = await supabase
+                .from('suspensions')
+                .select('*')
+                .eq('user_id', courierData.id)
+                .eq('user_type', 'courier')
+                .eq('status', 'active')
+                .maybeSingle();
+
+              if (altSuspensionData) {
+                activeSuspension = altSuspensionData;
+              }
+            } catch (altError) {
+              console.log('No alternative suspension table found');
+            }
+          } else if (suspensionData) {
+            activeSuspension = suspensionData;
+            console.log('Found active suspension:', activeSuspension);
+          }
+        } catch (error) {
+          console.error('Error in suspension check:', error);
+        }
+
+        // Store suspension data if found
+        if (activeSuspension) {
+          setSuspensionData({
+            ...activeSuspension,
+            userName: currentUser?.full_name || 'User',
+            userEmail: session.email
+          });
+
+          // If there's an active suspension, override the application_status
+          courierData.application_status = 'suspended';
+          console.log('Overriding status to suspended due to active suspension');
+        }
+
+        // Set courier status
+        setCourierStatus(courierData);
+
+        // Automatically update session if already approved and not suspended
+        if (courierData.application_status === 'approved' && !activeSuspension) {
+          updateUserSessionToCourier();
+        }
+      } else {
+        // No courier data found
+        setCourierStatus(null);
       }
     } catch (error) {
       console.error('Error checking courier status:', error);
@@ -198,6 +264,34 @@ const CustomerMenu = () => {
     }
   };
 
+  // Format suspension duration for display
+  const formatSuspensionDuration = (suspension) => {
+    if (!suspension) return 'No suspension data';
+
+    if (suspension.is_permanent) {
+      return 'Permanent Suspension';
+    }
+
+    if (suspension.scheduled_lift_date) {
+      const liftDate = new Date(suspension.scheduled_lift_date);
+      const now = new Date();
+      const diffTime = liftDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        return 'Suspension ending today';
+      }
+
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} remaining`;
+    }
+
+    if (suspension.duration_days) {
+      return `${suspension.duration_days} day${suspension.duration_days > 1 ? 's' : ''} suspension`;
+    }
+
+    return 'Duration not specified';
+  };
+
   const handleLogout = () => {
     clearUserSession();
     navigate('/customer/auth');
@@ -205,8 +299,13 @@ const CustomerMenu = () => {
 
   const handleSwitchToCourierClick = () => {
     if (courierStatus) {
-      // Show status modal if user already has an application
-      setShowCourierStatusModal(true);
+      if (courierStatus.application_status === 'suspended') {
+        // Show suspension modal if user is suspended
+        setShowCourierSuspensionModal(true);
+      } else {
+        // Show status modal for other statuses
+        setShowCourierStatusModal(true);
+      }
     } else {
       // Navigate to courier application
       setActiveFeature('courier');
@@ -268,6 +367,8 @@ const CustomerMenu = () => {
         return 'Application Pending';
       case 'rejected':
         return 'Apply Again';
+      case 'suspended':
+        return 'Suspended as a Courier';
       default:
         return 'Switch to Courier';
     }
@@ -283,6 +384,8 @@ const CustomerMenu = () => {
         return 'Your application is under review';
       case 'rejected':
         return 'Submit a new courier application';
+      case 'suspended':
+        return 'Your courier account has been suspended';
       default:
         return 'Become a delivery rider and earn money';
     }
@@ -561,6 +664,193 @@ const CustomerMenu = () => {
     </div>
   );
 
+  // NEW: Courier Suspension Modal Component
+  const CourierSuspensionModal = () => (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+      onClick={() => setShowCourierSuspensionModal(false)}
+    >
+      <div
+        className="bg-gradient-to-br from-gray-900 via-gray-800 to-red-900 border border-red-600 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl backdrop-blur-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="text-center mb-8 pb-6 border-b border-red-600">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg border border-red-400">
+            <AlertCircle size={32} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-red-400 mb-2">
+            Suspended as a Courier
+          </h2>
+          <p className="text-red-300 text-lg">
+            Your courier account has been suspended
+          </p>
+        </div>
+
+        {/* User Information */}
+        <div className="bg-gray-800 bg-opacity-50 border border-gray-600 rounded-xl p-6 mb-6 backdrop-blur-sm">
+          <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
+            <User size={18} />
+            Account Details
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 py-2 border-b border-gray-600">
+              <User size={16} className="text-teal-400" />
+              <span className="text-gray-300 font-medium min-w-16">Name:</span>
+              <span className="text-white font-medium">{suspensionData?.userName || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-3 py-2 border-b border-gray-600">
+              <Mail size={16} className="text-teal-400" />
+              <span className="text-gray-300 font-medium min-w-16">Email:</span>
+              <span className="text-white font-medium">{suspensionData?.userEmail || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-3 py-2">
+              <Truck size={16} className="text-teal-400" />
+              <span className="text-gray-300 font-medium min-w-16">Account Type:</span>
+              <span className="text-white font-medium">Courier</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Suspension Details */}
+        <div className="bg-gray-800 bg-opacity-50 border border-gray-600 rounded-xl p-6 mb-6 backdrop-blur-sm">
+          <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
+            <AlertCircle size={18} />
+            Suspension Information
+          </h3>
+
+          <div className="space-y-4">
+            {/* Suspension Reason */}
+            <div className="space-y-2">
+              <strong className="text-gray-300 text-sm flex items-center gap-2">
+                📝 Suspension Reason:
+              </strong>
+              <p className="text-white bg-gray-900 p-3 rounded-lg border-l-4 border-red-500 font-medium">
+                {suspensionData?.suspension_reason || 'No reason provided'}
+              </p>
+            </div>
+
+            {/* Suspension Type */}
+            <div className="space-y-2">
+              <strong className="text-gray-300 text-sm flex items-center gap-2">
+                ⚡ Suspension Type:
+              </strong>
+              <span className={`px-4 py-2 rounded-full font-semibold text-sm border ${suspensionData?.is_permanent
+                ? 'bg-red-500 bg-opacity-20 text-red-400 border-red-400 border-opacity-40'
+                : 'bg-yellow-500 bg-opacity-20 text-yellow-400 border-yellow-400 border-opacity-40'
+                }`}>
+                {suspensionData?.is_permanent ? 'Permanent Suspension' : 'Temporary Suspension'}
+              </span>
+            </div>
+
+            {/* Duration */}
+            {!suspensionData?.is_permanent && (
+              <div className="space-y-2">
+                <strong className="text-gray-300 text-sm flex items-center gap-2">
+                  ⏰ Duration:
+                </strong>
+                <span className="text-white">{formatSuspensionDuration(suspensionData)}</span>
+              </div>
+            )}
+
+            {/* Scheduled Lift Date */}
+            {suspensionData?.scheduled_lift_date && !suspensionData?.is_permanent && (
+              <div className="space-y-2">
+                <strong className="text-gray-300 text-sm flex items-center gap-2">
+                  📅 Scheduled Reactivation:
+                </strong>
+                <span className="text-white">
+                  {new Date(suspensionData.scheduled_lift_date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+            )}
+
+            {/* Suspension Notes */}
+            {suspensionData?.suspension_notes && (
+              <div className="space-y-2">
+                <strong className="text-gray-300 text-sm flex items-center gap-2">
+                  📋 Additional Notes:
+                </strong>
+                <p className="text-gray-300 bg-gray-900 p-3 rounded-lg border-l-4 border-gray-500 italic text-sm">
+                  {suspensionData.suspension_notes}
+                </p>
+              </div>
+            )}
+
+            {/* Suspension Date */}
+            <div className="space-y-2">
+              <strong className="text-gray-300 text-sm flex items-center gap-2">
+                📅 Suspended On:
+              </strong>
+              <span className="text-white">
+                {new Date(suspensionData?.created_at || Date.now()).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Important Notice */}
+        <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-xl p-6 mb-6 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-3 text-red-400">
+            <AlertCircle size={18} />
+            <strong className="text-base">Important Notice</strong>
+          </div>
+          <p className="text-red-300 mb-4 leading-relaxed">
+            {suspensionData?.is_permanent ? (
+              "This is a permanent suspension. Your courier account access has been permanently revoked due to serious violations of our terms of service."
+            ) : (
+              <>
+                Your courier account access has been temporarily restricted.
+                <strong> You can still use your customer account normally.</strong>
+                {" "}You will be able to access your courier account automatically after the suspension period ends.
+                {" "}The admin may also choose to reactivate your account earlier at their discretion.
+              </>
+            )}
+          </p>
+          <div className="bg-gray-900 bg-opacity-60 p-4 rounded-lg border-l-4 border-red-500">
+            <p className="text-gray-300 text-sm">
+              <strong>Need help?</strong> If you believe this is a mistake or want to appeal the suspension,
+              please contact our support team at <span className="text-teal-400 font-semibold hover:text-teal-300 cursor-pointer">support@pickarry.com</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4 justify-center mb-6">
+          <button
+            className="px-8 py-3 bg-gray-600 bg-opacity-60 text-gray-200 border border-gray-500 rounded-xl font-semibold hover:bg-gray-500 hover:bg-opacity-80 hover:text-white transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
+            onClick={() => setShowCourierSuspensionModal(false)}
+          >
+            I Understand
+          </button>
+          <button
+            className="px-8 py-3 bg-red-600 bg-opacity-60 text-white border border-red-500 rounded-xl font-semibold hover:bg-red-500 hover:bg-opacity-80 transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
+            onClick={() => window.location.href = 'mailto:support@pickarry.com'}
+          >
+            Contact Support
+          </button>
+        </div>
+
+        {/* Admin Note */}
+        <div className="bg-teal-500 bg-opacity-10 border border-teal-500 border-opacity-30 rounded-xl p-4 text-center backdrop-blur-sm">
+          <p className="text-teal-400 text-sm flex items-center justify-center gap-2">
+            💡 <strong>Note:</strong> You can continue using Pickarry as a customer. Courier account reactivation can be done by the administrator.
+            {!suspensionData?.is_permanent && " The system will automatically lift the suspension when the duration period ends."}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   // Feature components with the new layout
   if (activeFeature === 'settings') {
     return (
@@ -676,6 +966,7 @@ const CustomerMenu = () => {
                         }`}>
                         {courierStatus.application_status === 'approved' && <CheckCircle size={10} className="mr-1" />}
                         {courierStatus.application_status === 'pending' && <Clock size={10} className="mr-1" />}
+                        {courierStatus.application_status === 'suspended' && <AlertCircle size={10} className="mr-1" />}
                         {courierStatus.application_status.charAt(0).toUpperCase() + courierStatus.application_status.slice(1)} Courier
                       </div>
                     )}
@@ -698,8 +989,10 @@ const CustomerMenu = () => {
               return (
                 <div
                   key={option.id}
-                  className={`bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 hover:border-teal-500/30 transition-all duration-200 cursor-pointer group ${isCourierOption && courierStatus ? `courier-option status-${courierStatus.application_status}` : ''
-                    }`}
+                  className={`bg-gray-800 border rounded-xl p-4 hover:bg-gray-750 hover:border-teal-500/30 transition-all duration-200 cursor-pointer group ${isCourierOption && courierStatus ? `courier-option status-${courierStatus.application_status}` : ''
+                    } ${isCourierOption && courierStatus?.application_status === 'suspended'
+                      ? 'border-red-500/50 bg-red-500/5 hover:bg-red-500/10 hover:border-red-500/70'
+                      : 'border-gray-700 hover:border-teal-500/30'}`}
                   onClick={option.action}
                 >
                   <div className="flex items-center justify-between">
@@ -707,21 +1000,27 @@ const CustomerMenu = () => {
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:bg-gray-600 transition-all duration-200 ${isCourierOption && courierStatus
                         ? courierStatus.application_status === 'approved' ? 'bg-green-500/20'
                           : courierStatus.application_status === 'pending' ? 'bg-yellow-500/20'
-                            : 'bg-red-500/20'
+                            : courierStatus.application_status === 'suspended' ? 'bg-red-500/20'
+                              : 'bg-red-500/20'
                         : option.id === 5 ? 'bg-blue-500/20' // Special color for Policies
                           : 'bg-gray-700'
                         }`}>
                         <Icon className={`w-6 h-6 ${isCourierOption && courierStatus
                           ? courierStatus.application_status === 'approved' ? 'text-green-400'
                             : courierStatus.application_status === 'pending' ? 'text-yellow-400'
-                              : 'text-red-400'
+                              : courierStatus.application_status === 'suspended' ? 'text-red-400'
+                                : 'text-red-400'
                           : option.id === 5 ? 'text-blue-400' // Special color for Policies icon
                             : 'text-teal-400'
                           }`} />
                       </div>
                       <div>
-                        <h3 className="text-white font-medium text-lg">{option.title}</h3>
-                        <p className="text-gray-400 text-sm">{option.description}</p>
+                        <h3 className={`font-medium text-lg ${isCourierOption && courierStatus?.application_status === 'suspended' ? 'text-red-300' : 'text-white'}`}>
+                          {option.title}
+                        </h3>
+                        <p className={`text-sm ${isCourierOption && courierStatus?.application_status === 'suspended' ? 'text-red-200/80' : 'text-gray-400'}`}>
+                          {option.description}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -730,12 +1029,16 @@ const CustomerMenu = () => {
                           ? 'bg-green-500/20 text-green-400'
                           : courierStatus.application_status === 'pending'
                             ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-red-500/20 text-red-400'
+                            : courierStatus.application_status === 'suspended'
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-red-500/20 text-red-400'
                           }`}>
                           {courierStatus.application_status.charAt(0).toUpperCase() + courierStatus.application_status.slice(1)}
                         </div>
                       )}
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-teal-400 transition-all duration-200" />
+                      <ChevronRight className={`w-5 h-5 transition-all duration-200 ${isCourierOption && courierStatus?.application_status === 'suspended'
+                        ? 'text-red-400 group-hover:text-red-300'
+                        : 'text-gray-400 group-hover:text-teal-400'}`} />
                     </div>
                   </div>
                 </div>
@@ -747,8 +1050,8 @@ const CustomerMenu = () => {
 
       <Footer />
 
-      {/* Courier Status Modal */}
       {showCourierStatusModal && <CourierStatusModal />}
+      {showCourierSuspensionModal && suspensionData && <CourierSuspensionModal />}
     </div>
   );
 };

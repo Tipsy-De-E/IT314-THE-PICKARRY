@@ -88,19 +88,46 @@ export const reverseGeocode = async (lat, lng) => {
     
     if (data.features && data.features.length > 0) {
       const feature = data.features[0];
-      const barangay = JASAHAN_BARANGAYS.find(b => 
-        feature.properties.suburb?.toLowerCase().includes(b.name.toLowerCase()) ||
-        feature.properties.village?.toLowerCase().includes(b.name.toLowerCase()) ||
-        feature.properties.city?.toLowerCase().includes('jasaan')
+      const p = feature.properties;
+
+      // Construct detailed address manually
+      // Format: [House Number] [Street], [Barangay], [City], [Province]
+      const parts = [];
+      if (p.housenumber) parts.push(p.housenumber);
+      if (p.street) parts.push(p.street);
+      const streetPart = parts.join(' ');
+
+      const barangay = p.suburb || p.village || p.district || '';
+      const municipality = p.city || p.municipality || 'Jasaan';
+      const province = p.state || 'Misamis Oriental';
+
+      // Find matching local barangay for consistency if possible
+      const localBarangay = JASAHAN_BARANGAYS.find(b => 
+        (barangay && b.name.toLowerCase().includes(barangay.toLowerCase())) ||
+        (streetPart && streetPart.toLowerCase().includes(b.name.toLowerCase()))
       );
-      
+
+      let detailedAddress = '';
+      if (streetPart) detailedAddress += `${streetPart}, `;
+      if (localBarangay) {
+        detailedAddress += `${localBarangay.name}, `;
+      } else if (barangay) {
+        detailedAddress += `${barangay}, `;
+      }
+      detailedAddress += `${municipality}, ${province}`;
+
+      // Fallback if construction failed
+      if (detailedAddress.length < 10) {
+        detailedAddress = p.formatted;
+      }
+
       return {
-        address: feature.properties.formatted,
-        street: feature.properties.street,
-        barangay: barangay?.name || feature.properties.suburb || feature.properties.village,
-        municipality: feature.properties.city || feature.properties.municipality,
-        province: feature.properties.state,
-        fullAddress: feature.properties
+        address: detailedAddress,
+        street: p.street,
+        barangay: localBarangay?.name || barangay,
+        municipality: municipality,
+        province: province,
+        fullAddress: p
       };
     }
     
@@ -110,7 +137,7 @@ export const reverseGeocode = async (lat, lng) => {
     // Fallback: find nearest barangay
     const nearestBarangay = findNearestBarangay(lat, lng);
     return {
-      address: `${nearestBarangay.name}, Jasaan, Misamis Oriental`,
+      address: `Near ${nearestBarangay.name}, Jasaan, Misamis Oriental`,
       barangay: nearestBarangay.name,
       municipality: 'Jasaan',
       province: 'Misamis Oriental'

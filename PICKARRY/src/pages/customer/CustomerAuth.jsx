@@ -65,7 +65,6 @@ const CustomerAuth = () => {
   // Suspension modal state
   const [showSuspensionModal, setShowSuspensionModal] = useState(false);
   const [suspensionData, setSuspensionData] = useState(null);
-  const [loginAsCourier, setLoginAsCourier] = useState(false); // Track if user is trying to login as courier
 
   // Generate years (from current year back to 1900)
   const currentYear = new Date().getFullYear();
@@ -420,34 +419,6 @@ const CustomerAuth = () => {
     return false;
   };
 
-  // FIXED: Check if user has both customer and courier accounts
-  const findUserAccounts = async (email) => {
-    try {
-      const [customerResult, courierResult] = await Promise.all([
-        supabase
-          .from('customers')
-          .select('*')
-          .eq('email', email.toLowerCase())
-          .single(),
-        supabase
-          .from('couriers')
-          .select('*')
-          .eq('email', email.toLowerCase())
-          .single()
-      ]);
-
-      return {
-        customer: customerResult.data,
-        customerError: customerResult.error,
-        courier: courierResult.data,
-        courierError: courierResult.error
-      };
-    } catch (error) {
-      console.error('Error finding user accounts:', error);
-      return { customer: null, courier: null };
-    }
-  };
-
   const handleSignUp = async () => {
     if (!formData.agreeToTerms) {
       setFormErrors({
@@ -502,7 +473,7 @@ const CustomerAuth = () => {
           address: formData.address,
           date_of_birth: formData.dateOfBirth,
           gender: formData.gender,
-          status: 'active', // ALWAYS set to active for new signups
+          status: 'active',
           total_orders: 0
         }])
         .select();
@@ -597,7 +568,7 @@ const CustomerAuth = () => {
           .from('admins')
           .select('*')
           .eq('email', DEFAULT_ADMIN.email.toLowerCase())
-          .single();
+          .maybeSingle();
 
         if (adminError || !adminData) {
           // Create admin record if it doesn't exist (fallback)
@@ -610,7 +581,7 @@ const CustomerAuth = () => {
               status: 'active'
             }])
             .select()
-            .single();
+            .maybeSingle();
 
           if (createError) {
             console.error('Failed to create admin record:', createError);
@@ -639,101 +610,41 @@ const CustomerAuth = () => {
         return;
       }
 
-      // --- FIXED: Check both customer and courier accounts simultaneously ---
-      const { customer, courier } = await findUserAccounts(formData.email);
+      // --- Regular Customer Login ---
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('email', formData.email.toLowerCase())
+        .maybeSingle();
 
-      console.log('👤 Customer found:', customer);
-      console.log('🚚 Courier found:', courier);
+      if (customerError || !customerData) {
+        console.log('👤 Not a customer, checking courier...');
 
-      // Determine if user exists
-      if (!customer && !courier) {
-        console.log('❌ Invalid credentials - user not found');
-        setFormErrors({
-          email: 'No account found with this email',
-          password: 'Please check your credentials'
-        });
-        setFieldStates({
-          email: 'error',
-          password: 'error'
-        });
-        setIsLoading(false);
-        return;
-      }
+        // Check if it's a courier
+        const { data: courierData, error: courierError } = await supabase
+          .from('couriers')
+          .select('*')
+          .eq('email', formData.email.toLowerCase())
+          .maybeSingle();
 
-      // --- FIXED: Check customer account first (preferred login) ---
-      if (customer) {
-        console.log('👤 Customer account exists, checking password...');
-
-        // Verify password for customer
-        if (!bcrypt.compareSync(formData.password, customer.password)) {
-          console.log('❌ Invalid password for customer');
+        if (courierError || !courierData) {
+          console.log('❌ Invalid credentials - user not found');
           setFormErrors({
-            password: 'Wrong password'
+            email: 'No account found with this email',
+            password: 'Please check your credentials'
           });
           setFieldStates({
-            ...fieldStates,
+            email: 'error',
             password: 'error'
           });
           setIsLoading(false);
           return;
         }
 
-        // Customer login - Check if customer account is suspended
-        console.log('🔍 Checking customer account suspension status...');
-        if (customer.status === 'suspended') {
-          console.log('🚫 Customer account is suspended');
-
-          // Check for detailed suspension info
-          const suspension = await checkSuspension(customer.id, 'customer');
-          if (suspension) {
-            console.log('📋 Customer suspension record found:', suspension);
-
-            const wasLifted = await checkAutoLiftSuspension(suspension, customer.id, 'customer');
-            if (!wasLifted) {
-              console.log('🔄 Setting up suspension modal for customer');
-              setSuspensionData({
-                ...suspension,
-                userType: 'customer',
-                userName: customer.full_name,
-                userEmail: customer.email,
-                userPhone: customer.phone,
-                isCustomerSuspended: true
-              });
-              setShowSuspensionModal(true);
-              setIsLoading(false);
-              return;
-            } else {
-              console.log('✅ Customer suspension was auto-lifted, proceeding with login');
-              // Continue with normal login since suspension was lifted
-            }
-          }
-        }
-
-        // If we reach here, customer account is active or suspension was lifted
-        console.log('✅ Customer login successful, setting user session');
-        setUserSession('customer', {
-          id: customer.id,
-          email: formData.email,
-          name: customer.full_name,
-          hasCourierAccount: !!courier, // Store if user also has a courier account
-          isCourierSuspended: courier?.application_status === 'suspended' // Store courier suspension status
-        });
-
-        // Check if courier account exists and is approved (not suspended)
-        if (courier && courier.application_status === 'approved') {
-          console.log('📝 User also has approved courier account');
-        }
-
-        navigate('/customer/home');
-        return;
-      }
-
-      // --- If no customer account exists, check courier account ---
-      if (courier) {
-        console.log('🚚 Only courier account exists, checking password...');
+        console.log('🚚 Courier found:', courierData.full_name);
 
         // Verify password for courier
-        if (!bcrypt.compareSync(formData.password, courier.password)) {
+        if (!bcrypt.compareSync(formData.password, courierData.password)) {
           console.log('❌ Invalid password for courier');
           setFormErrors({
             password: 'Wrong password'
@@ -748,24 +659,23 @@ const CustomerAuth = () => {
 
         // Courier login - Check if account is suspended
         console.log('🔍 Checking courier suspension status...');
-        if (courier.application_status === 'suspended') {
+        if (courierData.application_status === 'suspended') {
           console.log('🚫 Courier account is suspended');
 
           // Check for detailed suspension info
-          const suspension = await checkSuspension(courier.id, 'courier');
+          const suspension = await checkSuspension(courierData.id, 'courier');
           if (suspension) {
             console.log('📋 Suspension record found:', suspension);
 
-            const wasLifted = await checkAutoLiftSuspension(suspension, courier.id, 'courier');
+            const wasLifted = await checkAutoLiftSuspension(suspension, courierData.id, 'courier');
             if (!wasLifted) {
               console.log('🔄 Setting up suspension modal for courier');
               setSuspensionData({
                 ...suspension,
                 userType: 'courier',
-                userName: courier.full_name,
-                userEmail: courier.email,
-                userPhone: courier.phone,
-                isCourierSuspended: true
+                userName: courierData.full_name,
+                userEmail: courierData.email,
+                userPhone: courierData.phone
               });
               setShowSuspensionModal(true);
               setIsLoading(false);
@@ -776,15 +686,14 @@ const CustomerAuth = () => {
             }
           } else {
             // Account is suspended but no suspension record found - show modal anyway
-            console.log('⚠️ Courier account suspended but no suspension record found');
+            console.log('⚠️ Account suspended but no suspension record found');
             setSuspensionData({
               userType: 'courier',
-              userName: courier.full_name,
-              userEmail: courier.email,
+              userName: courierData.full_name,
+              userEmail: courierData.email,
               suspension_reason: 'Account suspended by administrator',
               is_permanent: false,
-              suspended_at: new Date().toISOString(),
-              isCourierSuspended: true
+              suspended_at: new Date().toISOString()
             });
             setShowSuspensionModal(true);
             setIsLoading(false);
@@ -793,15 +702,83 @@ const CustomerAuth = () => {
         }
 
         // If we reach here, courier is not suspended or suspension was lifted
-        console.log('✅ Courier login successful, setting user session');
         setUserSession('courier', {
-          id: courier.id,
-          email: formData.email,
-          name: courier.full_name
+          id: courierData.id,
+          email: courierData.email,
+          name: courierData.full_name
         });
         navigate('/courier/dashboard');
         return;
       }
+
+      console.log('👤 Customer found:', customerData.full_name);
+
+      // Verify password for customer
+      if (!bcrypt.compareSync(formData.password, customerData.password)) {
+        console.log('❌ Invalid password for customer');
+        setFormErrors({
+          password: 'Wrong password'
+        });
+        setFieldStates({
+          ...fieldStates,
+          password: 'error'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Customer login - Check if account is suspended
+      console.log('🔍 Checking customer suspension status...');
+      if (customerData.status === 'suspended') {
+        console.log('🚫 Customer account is suspended');
+
+        // Check for detailed suspension info
+        const suspension = await checkSuspension(customerData.id, 'customer');
+        if (suspension) {
+          console.log('📋 Suspension record found:', suspension);
+
+          const wasLifted = await checkAutoLiftSuspension(suspension, customerData.id, 'customer');
+          if (!wasLifted) {
+            console.log('🔄 Setting up suspension modal for customer');
+            setSuspensionData({
+              ...suspension,
+              userType: 'customer',
+              userName: customerData.full_name,
+              userEmail: customerData.email,
+              userPhone: customerData.phone
+            });
+            setShowSuspensionModal(true);
+            setIsLoading(false);
+            return;
+          } else {
+            console.log('✅ Suspension was auto-lifted, proceeding with login');
+            // Continue with normal login since suspension was lifted
+          }
+        } else {
+          // Account is suspended but no suspension record found - show modal anyway
+          console.log('⚠️ Account suspended but no suspension record found');
+          setSuspensionData({
+            userType: 'customer',
+            userName: customerData.full_name,
+            userEmail: customerData.email,
+            suspension_reason: 'Account suspended by administrator',
+            is_permanent: false,
+            suspended_at: new Date().toISOString()
+          });
+          setShowSuspensionModal(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // If we reach here, customer is not suspended or suspension was lifted
+      console.log('✅ Login successful, setting user session');
+      setUserSession('customer', {
+        id: customerData.id,
+        email: formData.email,
+        name: customerData.full_name
+      });
+      navigate('/customer/home');
 
     } catch (err) {
       console.error('❌ Login failed:', err);
@@ -981,7 +958,7 @@ const CustomerAuth = () => {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
                 >
-                  {suspensionData.isCustomerSuspended ? 'Customer Account Suspended' : 'Courier Account Suspended'}
+                  Account Suspended
                 </motion.h2>
                 <motion.p
                   className="text-gray-400 text-lg"
@@ -989,9 +966,7 @@ const CustomerAuth = () => {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
                 >
-                  {suspensionData.isCustomerSuspended
-                    ? 'Your customer account has been suspended'
-                    : 'Your courier account has been suspended'}
+                  Your account has been temporarily suspended
                 </motion.p>
               </motion.div>
 
@@ -1020,9 +995,7 @@ const CustomerAuth = () => {
                   <div className="flex items-center gap-3 py-2">
                     <Phone size={16} className="text-teal-400" />
                     <span className="text-gray-300 font-medium min-w-16">Type:</span>
-                    <span className="text-white font-medium capitalize">
-                      {suspensionData.isCustomerSuspended ? 'Customer' : 'Courier'}
-                    </span>
+                    <span className="text-white font-medium capitalize">{suspensionData.userType}</span>
                   </div>
                 </div>
               </motion.div>
@@ -1139,7 +1112,7 @@ const CustomerAuth = () => {
                 </div>
               </motion.div>
 
-              {/* Important Notice - DIFFERENT MESSAGE FOR CUSTOMER VS COURIER SUSPENSION */}
+              {/* Important Notice */}
               <motion.div
                 className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded-xl p-6 mb-6 backdrop-blur-sm"
                 initial={{ y: 20, opacity: 0 }}
@@ -1151,19 +1124,13 @@ const CustomerAuth = () => {
                   <strong className="text-base">Important Notice</strong>
                 </div>
                 <p className="text-yellow-300 mb-4 leading-relaxed">
-                  {suspensionData.isCustomerSuspended ? (
-                    <>
-                      Your customer account access has been temporarily restricted.
-                      <strong> You will not be able to use Pickarry services until the suspension period ends.</strong>
-                      {" "}The admin may also choose to reactivate your account earlier at their discretion.
-                    </>
-                  ) : suspensionData.is_permanent ? (
-                    "This is a permanent suspension. Your courier account access has been permanently revoked due to serious violations of our terms of service."
+                  {suspensionData.is_permanent ? (
+                    "This is a permanent suspension. Your account access has been permanently revoked due to serious violations of our terms of service."
                   ) : (
                     <>
-                      <strong>Your courier account has been suspended, but you can still use your customer account.</strong>
-                      {" "}You will be able to access your courier account automatically after the suspension period ends.
-                      {" "}The admin may also choose to reactivate your courier account earlier at their discretion.
+                      Your account access has been temporarily restricted.
+                      <strong> You will be able to access your account automatically after the suspension period ends.</strong>
+                      {" "}The admin may also choose to reactivate your account earlier at their discretion.
                     </>
                   )}
                 </p>
@@ -1175,51 +1142,29 @@ const CustomerAuth = () => {
                 </div>
               </motion.div>
 
-              {/* Action Buttons - DIFFERENT FOR CUSTOMER VS COURIER SUSPENSION */}
+              {/* Action Buttons */}
               <motion.div
                 className="flex gap-4 justify-center mb-6"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 1.0 }}
               >
-                {suspensionData.isCustomerSuspended ? (
-                  // Customer suspension - only option is to contact support
-                  <motion.button
-                    className="px-8 py-3 bg-red-600 bg-opacity-60 text-white border border-red-500 rounded-xl font-semibold hover:bg-red-500 hover:bg-opacity-80 transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
-                    onClick={() => window.location.href = 'mailto:support@pickarry.com'}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Contact Support
-                  </motion.button>
-                ) : (
-                  // Courier suspension - can still login as customer
-                  <>
-                    <motion.button
-                      className="px-8 py-3 bg-gray-600 bg-opacity-60 text-gray-200 border border-gray-500 rounded-xl font-semibold hover:bg-gray-500 hover:bg-opacity-80 hover:text-white transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
-                      onClick={handleSuspensionModalClose}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      I Understand
-                    </motion.button>
-                    <motion.button
-                      className="px-8 py-3 bg-teal-600 bg-opacity-60 text-white border border-teal-500 rounded-xl font-semibold hover:bg-teal-500 hover:bg-opacity-80 transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
-                      onClick={() => {
-                        // Try to login as customer instead
-                        setShowSuspensionModal(false);
-                        // Clear password field
-                        setFormData(prev => ({ ...prev, password: '' }));
-                        // Show message
-                        alert('Please try logging in again. Your customer account should be accessible.');
-                      }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Try Customer Login
-                    </motion.button>
-                  </>
-                )}
+                <motion.button
+                  className="px-8 py-3 bg-gray-600 bg-opacity-60 text-gray-200 border border-gray-500 rounded-xl font-semibold hover:bg-gray-500 hover:bg-opacity-80 hover:text-white transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
+                  onClick={handleSuspensionModalClose}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  I Understand
+                </motion.button>
+                <motion.button
+                  className="px-8 py-3 bg-red-600 bg-opacity-60 text-white border border-red-500 rounded-xl font-semibold hover:bg-red-500 hover:bg-opacity-80 transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative overflow-hidden"
+                  onClick={() => window.location.href = 'mailto:support@pickarry.com'}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Contact Support
+                </motion.button>
               </motion.div>
 
               {/* Admin Note */}
@@ -1230,10 +1175,8 @@ const CustomerAuth = () => {
                 transition={{ delay: 1.1 }}
               >
                 <p className="text-teal-400 text-sm flex items-center justify-center gap-2">
-                  💡 <strong>Note:</strong> {suspensionData.isCustomerSuspended
-                    ? 'Account reactivation can be done anytime by the administrator.'
-                    : 'Courier account suspension does not affect your customer account access.'}
-                  {!suspensionData.is_permanent && !suspensionData.isCustomerSuspended && " The system will automatically lift the suspension when the duration period ends."}
+                  💡 <strong>Note:</strong> Account reactivation can be done anytime by the administrator.
+                  {!suspensionData.is_permanent && " The system will automatically lift the suspension when the duration period ends."}
                 </p>
               </motion.div>
             </motion.div>

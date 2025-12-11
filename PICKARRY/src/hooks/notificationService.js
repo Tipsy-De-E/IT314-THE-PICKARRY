@@ -1096,15 +1096,49 @@ export const notificationService = {
       // Get eligible couriers
       let query = supabase
         .from('couriers')
-        .select('id, email, vehicle_type, is_online')
-        .eq('application_status', 'approved')
-        .eq('is_online', true);
+        .select('id, email, vehicle_type')
+        .eq('application_status', 'approved');
 
-      if (orderDetails.vehicleType && orderDetails.vehicleType !== 'Any') {
-        query = query.eq('vehicle_type', orderDetails.vehicleType);
+      // Fetch all approved and online couriers first
+      // We filter vehicle type in memory to avoid 400 errors from DB enum mismatches
+      const { data: allCouriers, error } = await query;
+
+      if (error) {
+        console.error('Error fetching couriers for notification:', error);
+        return;
       }
 
-      const { data: couriers, error } = await query;
+      let couriers = allCouriers || [];
+
+      // Filter couriers by vehicle type in memory
+      if (orderDetails.vehicleType && orderDetails.vehicleType !== 'Any') {
+        const requestedType = orderDetails.vehicleType.toLowerCase();
+        
+        // Map of requested types to possible DB values (aliases)
+        // This handles cases where DB stores 'walking' but frontend asks for 'On-Foot'
+        const typeAliases = {
+          'on-foot': ['walking', 'on-foot', 'on foot', 'walker'],
+          'walking': ['walking', 'on-foot', 'on foot', 'walker'],
+          'bicycle': ['bicycle', 'bike', 'cycling'],
+          'motorcycle': ['motorcycle', 'motorbike', 'moto'],
+          'scooter': ['scooter', 'motorcycle'],
+          'car': ['car', 'sedan', '4-wheels'],
+          'van': ['van', 'l300', 'truck'],
+          'truck': ['truck', 'van', 'l300']
+        };
+
+        const searchTerms = typeAliases[requestedType] || [requestedType];
+
+        couriers = couriers.filter(courier => {
+          if (!courier.vehicle_type) return false;
+          const courierVehicle = courier.vehicle_type.toLowerCase();
+          
+          // Check if the courier's vehicle matches any of the valid aliases
+          return searchTerms.some(term => courierVehicle === term || courierVehicle.includes(term));
+        });
+
+        console.log(`Filtered couriers for ${requestedType}:`, couriers.length);
+      }
 
       if (error || !couriers || couriers.length === 0) {
         console.log('No eligible couriers found');

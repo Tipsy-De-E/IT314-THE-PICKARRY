@@ -43,6 +43,10 @@ const CourierBook = () => {
   const [updatingOrder, setUpdatingOrder] = useState(null);
   const [profileImage, setProfileImage] = useState('');
 
+  // CANCELLATION TIMER STATE
+  const [cancellationTimer, setCancellationTimer] = useState(null);
+  const [isCancellingWithTimer, setIsCancellingWithTimer] = useState(false);
+
   // FARE MANAGEMENT STATE
   const [fareConfig, setFareConfig] = useState(null);
   const [vehicleRates, setVehicleRates] = useState([]);
@@ -685,6 +689,34 @@ const CourierBook = () => {
       setShowCancelConfirmModal(false);
       setOrderToCancel(null);
     }
+  };
+
+  // Timer effect for cancellation
+  useEffect(() => {
+    let interval;
+    if (isCancellingWithTimer && cancellationTimer > 0) {
+      interval = setInterval(() => {
+        setCancellationTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (isCancellingWithTimer && cancellationTimer === 0) {
+      // Timer finished, execute cancellation
+      if (orderToCancel) {
+        cancelOrder(orderToCancel.id);
+      }
+      setIsCancellingWithTimer(false);
+      setCancellationTimer(null);
+    }
+    return () => clearInterval(interval);
+  }, [isCancellingWithTimer, cancellationTimer, orderToCancel]);
+
+  const startCancellationTimer = () => {
+    setIsCancellingWithTimer(true);
+    setCancellationTimer(10); // 10 seconds countdown
+  };
+
+  const stopCancellationTimer = () => {
+    setIsCancellingWithTimer(false);
+    setCancellationTimer(null);
   };
 
   // FIXED: Enhanced load remarks for orders (FROM courier TO customer)
@@ -1795,7 +1827,7 @@ Generated on: ${new Date().toLocaleString()}
 
                 {activeTab === 'current' && (
                   <>
-                    {getNextStatusOptions(selectedOrder).length > 0 ? (
+                    {getNextStatusOptions(selectedOrder).length > 0 && (
                       <button
                         className="action-button update-status"
                         onClick={() => {
@@ -1805,11 +1837,13 @@ Generated on: ${new Date().toLocaleString()}
                       >
                         Update Status
                       </button>
-                    ) : (
-                      selectedOrder.deliveryStatus !== 'delivered' &&
+                    )}
+
+                    {selectedOrder.deliveryStatus !== 'delivered' &&
                       selectedOrder.deliveryStatus !== 'cancelled' && (
                         <button
                           className="action-button cancel-timer"
+                          style={{ marginLeft: '10px', backgroundColor: '#e74c3c' }}
                           onClick={() => {
                             setShowOrderDetailsModal(false);
                             confirmCancelOrder(selectedOrder);
@@ -1817,8 +1851,7 @@ Generated on: ${new Date().toLocaleString()}
                         >
                           Cancel Book
                         </button>
-                      )
-                    )}
+                      )}
                   </>
                 )}
 
@@ -1990,12 +2023,19 @@ Generated on: ${new Date().toLocaleString()}
         </div>
       )}
 
-      {/* CANCEL CONFIRMATION MODAL */}
+      {/* CANCEL CONFIRMATION MODAL WITH COUNTDOWN */}
       {showCancelConfirmModal && orderToCancel && (
-        <div className="modal-overlay" onClick={() => setShowCancelConfirmModal(false)}>
+        <div className="modal-overlay" onClick={() => !isCancellingWithTimer && setShowCancelConfirmModal(false)}>
           <div className="cancel-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <button className="close-button" onClick={() => setShowCancelConfirmModal(false)}>
+              <button
+                className="close-button"
+                onClick={() => {
+                  stopCancellationTimer();
+                  setShowCancelConfirmModal(false);
+                }}
+                disabled={isCancellingWithTimer}
+              >
                 <X size={24} />
               </button>
               <h2>Cancel Booking</h2>
@@ -2003,33 +2043,69 @@ Generated on: ${new Date().toLocaleString()}
 
             <div className="modal-body">
               <div className="cancel-warning">
-                <AlertTriangle size={48} className="warning-icon" />
-                <h3>Are you sure you want to cancel this booking?</h3>
-                <p className="warning-text">
-                  This action cannot be undone. The customer will be notified that you have declined their booking.
-                </p>
+                {isCancellingWithTimer ? (
+                  <div className="timer-container" style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      border: '5px solid #ff4d4f',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 20px',
+                      fontSize: '32px',
+                      fontWeight: 'bold',
+                      color: '#ff4d4f'
+                    }}>
+                      {cancellationTimer}
+                    </div>
+                    <h3>Cancelling in {cancellationTimer} seconds...</h3>
+                    <p>Click Undo to keep this booking.</p>
+                  </div>
+                ) : (
+                  <>
+                    <AlertTriangle size={48} className="warning-icon" />
+                    <h3>Are you sure you want to cancel this booking?</h3>
+                    <p className="warning-text">
+                      This action cannot be undone. The customer will be notified that you have declined their booking.
+                    </p>
 
-                <div className="order-details-preview">
-                  <p><strong>Order:</strong> {orderToCancel.orderNumber}</p>
-                  <p><strong>Pickup:</strong> {orderToCancel.pickupLocation}</p>
-                  <p><strong>Delivery:</strong> {orderToCancel.deliveryLocation}</p>
-                  <p><strong>Amount:</strong> ₱{orderToCancel.payment}</p>
-                </div>
+                    <div className="order-details-preview">
+                      <p><strong>Order:</strong> {orderToCancel.orderNumber}</p>
+                      <p><strong>Pickup:</strong> {orderToCancel.pickupLocation}</p>
+                      <p><strong>Delivery:</strong> {orderToCancel.deliveryLocation}</p>
+                      <p><strong>Amount:</strong> ₱{orderToCancel.payment}</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="modal-actions">
-                <button
-                  className="cancel-button secondary"
-                  onClick={() => setShowCancelConfirmModal(false)}
-                >
-                  Keep Booking
-                </button>
-                <button
-                  className="cancel-button confirm"
-                  onClick={() => cancelOrder(orderToCancel.id)}
-                >
-                  Yes, Cancel Booking
-                </button>
+                {isCancellingWithTimer ? (
+                  <button
+                    className="cancel-button secondary"
+                    style={{ width: '100%', backgroundColor: '#f0f0f0', color: '#333' }}
+                    onClick={stopCancellationTimer}
+                  >
+                    Undo Cancellation
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="cancel-button secondary"
+                      onClick={() => setShowCancelConfirmModal(false)}
+                    >
+                      Keep Booking
+                    </button>
+                    <button
+                      className="cancel-button confirm"
+                      onClick={startCancellationTimer}
+                    >
+                      Yes, Cancel Booking
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

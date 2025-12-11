@@ -6,7 +6,7 @@ import {
   Calendar, Menu, Filter, ChevronDown, User, Bell,
   X, Navigation, Phone, Mail, Image, Loader, Eye,
   AlertTriangle, TrendingUp, Clock as ClockIcon, Download,
-  MessageSquare, AlertCircle
+  MessageSquare, AlertCircle, UserX
 } from 'lucide-react';
 import { clearUserSession, getCurrentUser } from '../../utils/auth';
 import { supabase } from '../../utils/supabaseClient';
@@ -52,6 +52,12 @@ const CourierHome = () => {
   const [activeBookings, setActiveBookings] = useState([]);
   const [loadingActiveServices, setLoadingActiveServices] = useState(true);
 
+  // ACCEPTANCE COUNTDOWN STATE
+  const [showAcceptanceCountdownModal, setShowAcceptanceCountdownModal] = useState(false);
+  const [acceptanceCountdownTimer, setAcceptanceCountdownTimer] = useState(null);
+  const [isAcceptingWithTimer, setIsAcceptingWithTimer] = useState(false);
+  const [acceptedOrderForCountdown, setAcceptedOrderForCountdown] = useState(null);
+
   // Check authentication and load data
   useEffect(() => {
     checkAuthentication();
@@ -71,6 +77,34 @@ const CourierHome = () => {
       setupRealtimeSubscription();
     }
   }, [userData]);
+
+  // ACCEPTANCE COUNTDOWN TIMER EFFECT
+  useEffect(() => {
+    let interval;
+    if (isAcceptingWithTimer && acceptanceCountdownTimer > 0) {
+      interval = setInterval(() => {
+        setAcceptanceCountdownTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (isAcceptingWithTimer && acceptanceCountdownTimer === 0) {
+      // Timer finished, proceed with navigation
+      if (acceptedOrderForCountdown) {
+        setIsAcceptingWithTimer(false);
+        setShowAcceptanceCountdownModal(false);
+        setAcceptanceCountdownTimer(null);
+        navigate(acceptedOrderForCountdown.requestType === 'current' ? '/courier/history' : '/courier/book', {
+          state: {
+            acceptedOrder: {
+              ...acceptedOrderForCountdown,
+              status: 'Accepted',
+              deliveryStatus: 'accepted'
+            }
+          }
+        });
+        setAcceptedOrderForCountdown(null);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isAcceptingWithTimer, acceptanceCountdownTimer, acceptedOrderForCountdown, navigate]);
 
   // Load active services (deliveries and bookings) that courier is currently handling
   const loadActiveServices = async () => {
@@ -138,6 +172,15 @@ const CourierHome = () => {
 
   // Check if courier can accept a new order
   const canAcceptOrder = (orderToCheck) => {
+    // Check if this is the courier's own order request
+    if (orderToCheck.customerId === userData?.id) {
+      return {
+        canAccept: false,
+        reason: 'This is your own service request. You cannot accept your own orders.',
+        conflictType: 'own_order'
+      };
+    }
+
     // If courier has any active delivery, cannot accept new current delivery
     if (orderToCheck.requestType === 'current') {
       if (activeDeliveries.length > 0) {
@@ -231,7 +274,9 @@ const CourierHome = () => {
         email: courierData.email || 'courier@gmail.com',
         initials: (courierData.full_name || 'Courier').charAt(0),
         vehicle: courierData.vehicle_type,
-        profile_image: courierData.profile_image || ''
+        profile_image: courierData.profile_image || '',
+        // Get customer ID from couriers table (customer_id field)
+        customerId: courierData.customer_id
       });
 
       // Set profile image if available
@@ -479,42 +524,49 @@ const CourierHome = () => {
 
       if (error) throw error;
 
-      const formattedOrders = data.map(order => ({
-        id: order.id,
-        orderNumber: `ORD-${order.id.slice(-8).toUpperCase()}`,
-        pickupLocation: order.pickup_location,
-        deliveryLocation: order.delivery_location,
-        item: order.delivery_item,
-        payment: order.total_amount,
-        paymentMethod: order.payment_method || 'GCash',
-        rushDelivery: order.is_rush_delivery ? `₱${order.rush_amount} (Rush)` : null,
-        date: order.book_for_delivery
-          ? `Book: ${new Date(order.delivery_date).toLocaleDateString()} ${order.delivery_time}`
-          : `Today: ${order.delivery_time}`,
-        status: 'Pending',
-        deliveryStatus: 'pending',
-        requestType: order.book_for_delivery ? 'book' : 'current',
-        customerName: order.customers?.full_name || 'Customer',
-        phone: order.customers?.phone || 'No phone',
-        email: order.customers?.email || 'No email',
-        vehicleType: order.selected_vehicle,
-        serviceType: order.selected_service,
-        distance: order.estimated_distance,
-        estimatedTime: '10-15 mins',
-        category: order.selected_category,
-        description: order.description,
-        items: [
-          {
-            name: order.delivery_item,
-            quantity: 1,
-            price: parseFloat(order.total_amount) - (order.is_rush_delivery ? parseFloat(order.rush_amount) : 0)
-          }
-        ],
-        images: order.uploaded_photos || [],
-        rushAmount: order.rush_amount,
-        isRushDelivery: order.is_rush_delivery,
-        supabaseData: order
-      }));
+      const formattedOrders = data.map(order => {
+        // Check if this is the courier's own order
+        const isOwnOrder = userData && order.customer_id === userData.customerId;
+
+        return {
+          id: order.id,
+          orderNumber: `ORD-${order.id.slice(-8).toUpperCase()}`,
+          pickupLocation: order.pickup_location,
+          deliveryLocation: order.delivery_location,
+          item: order.delivery_item,
+          payment: order.total_amount,
+          paymentMethod: order.payment_method || 'GCash',
+          rushDelivery: order.is_rush_delivery ? `₱${order.rush_amount} (Rush)` : null,
+          date: order.book_for_delivery
+            ? `Book: ${new Date(order.delivery_date).toLocaleDateString()} ${order.delivery_time}`
+            : `Today: ${order.delivery_time}`,
+          status: 'Pending',
+          deliveryStatus: 'pending',
+          requestType: order.book_for_delivery ? 'book' : 'current',
+          customerName: order.customers?.full_name || 'Customer',
+          phone: order.customers?.phone || 'No phone',
+          email: order.customers?.email || 'No email',
+          vehicleType: order.selected_vehicle,
+          serviceType: order.selected_service,
+          distance: order.estimated_distance,
+          estimatedTime: '10-15 mins',
+          category: order.selected_category,
+          description: order.description,
+          items: [
+            {
+              name: order.delivery_item,
+              quantity: 1,
+              price: parseFloat(order.total_amount) - (order.is_rush_delivery ? parseFloat(order.rush_amount) : 0)
+            }
+          ],
+          images: order.uploaded_photos || [],
+          rushAmount: order.rush_amount,
+          isRushDelivery: order.is_rush_delivery,
+          supabaseData: order,
+          customerId: order.customer_id,
+          isOwnOrder: isOwnOrder
+        };
+      });
 
       setOrders(formattedOrders);
     } catch (error) {
@@ -950,16 +1002,11 @@ const CourierHome = () => {
       setShowOrderDetailsModal(false);
       setShowPaymentBreakdownModal(false);
 
-      // Navigate to appropriate page
-      navigate(orderToAccept.requestType === 'current' ? '/courier/history' : '/courier/book', {
-        state: {
-          acceptedOrder: {
-            ...orderToAccept,
-            status: 'Accepted',
-            deliveryStatus: 'accepted'
-          }
-        }
-      });
+      // Start acceptance countdown instead of navigating immediately
+      setAcceptedOrderForCountdown(orderToAccept);
+      setShowAcceptanceCountdownModal(true);
+      setAcceptanceCountdownTimer(25); // 25 seconds countdown
+      setIsAcceptingWithTimer(true);
 
     } catch (error) {
       console.error('Error accepting order:', error);
@@ -967,6 +1014,63 @@ const CourierHome = () => {
     } finally {
       setAcceptingOrder(null);
       setOrderToAccept(null);
+    }
+  };
+
+  // Function to cancel accepted order during countdown
+  const cancelAcceptedOrder = async () => {
+    if (!acceptedOrderForCountdown) return;
+
+    try {
+      // Update order back to pending (make it available for other couriers)
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'pending',
+          courier_status: null,
+          courier_id: null,
+          accepted_at: null
+        })
+        .eq('id', acceptedOrderForCountdown.id);
+
+      if (error) throw error;
+
+      // Record in order status history
+      await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: acceptedOrderForCountdown.id,
+          status: 'pending',
+          courier_status: null,
+          notes: 'Order cancelled by courier during acceptance countdown - returned to pending'
+        });
+
+      // Send notification to customer that acceptance was cancelled
+      try {
+        await notificationService.notifyOrderStatusUpdate(
+          acceptedOrderForCountdown.id,
+          'pending',
+          acceptedOrderForCountdown.supabaseData.customer_id,
+          {
+            courier_name: userData.name,
+            reason: 'Courier cancelled acceptance during confirmation window'
+          }
+        );
+      } catch (error) {
+        console.error('Error sending notification:', error);
+      }
+
+      // Reset states
+      setIsAcceptingWithTimer(false);
+      setShowAcceptanceCountdownModal(false);
+      setAcceptanceCountdownTimer(null);
+      setAcceptedOrderForCountdown(null);
+
+      alert('Order cancelled successfully. It is now available for other couriers to accept.');
+
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      alert('Error cancelling order. Please try again.');
     }
   };
 
@@ -1128,23 +1232,6 @@ const CourierHome = () => {
             <div className="profile-info">
               <h3>{userData?.name || 'Courier'}</h3>
               <p>{userData?.email || 'courier@gmail.com'}</p>
-              {/* Active Services Indicator in Sidebar */}
-              {/* {!loadingActiveServices && (activeDeliveries.length > 0 || activeBookings.length > 0) && (
-                <div className="active-services-sidebar">
-                  <div className="active-services-count">
-                    <span className="active-label">Active Services:</span>
-                    <span className="active-count">{activeDeliveries.length + activeBookings.length}</span>
-                  </div>
-                  <div className="active-services-breakdown">
-                    {activeDeliveries.length > 0 && (
-                      <span className="active-deliveries">Deliveries: {activeDeliveries.length}</span>
-                    )}
-                    {activeBookings.length > 0 && (
-                      <span className="active-bookings">Bookings: {activeBookings.length}</span>
-                    )}
-                  </div>
-                </div>
-              )} */}
             </div>
           </div>
 
@@ -1329,15 +1416,23 @@ const CourierHome = () => {
             ) : (
               filteredOrders.map(order => {
                 const acceptanceCheck = canAcceptOrder(order);
+                const isOwnOrder = order.customerId === userData?.customerId;
 
                 return (
-                  <div key={order.id} className="courier-order-card">
+                  <div key={order.id} className={`courier-order-card ${isOwnOrder ? 'own-order' : ''}`}>
                     <div className="order-header">
                       <div className="order-pickup">
                         <MapPin className="w-5 h-5" />
                         <span>{order.pickupLocation}</span>
                       </div>
-                      <div className="order-badge new-badge">NEW</div>
+                      {isOwnOrder ? (
+                        <div className="order-badge own-order-badge">
+                          <UserX size={14} />
+                          <span>YOURS</span>
+                        </div>
+                      ) : (
+                        <div className="order-badge new-badge">NEW</div>
+                      )}
                     </div>
 
                     <div className="order-details">
@@ -1369,7 +1464,12 @@ const CourierHome = () => {
                       </div>
                     </div>
 
-
+                    {isOwnOrder && (
+                      <div className="own-order-notice">
+                        <UserX size={16} />
+                        <span>This is your own service request. You cannot accept your own orders.</span>
+                      </div>
+                    )}
 
                     <div className="order-footer">
                       <button
@@ -1378,7 +1478,7 @@ const CourierHome = () => {
                       >
                         View Details
                       </button>
-                      {!acceptanceCheck.canAccept && (
+                      {!acceptanceCheck.canAccept && !isOwnOrder && (
                         <div className="acceptance-warning">
                           <AlertCircle size={16} />
                           <span>{acceptanceCheck.reason}</span>
@@ -1386,10 +1486,10 @@ const CourierHome = () => {
                       )}
                       <div className="pending-order-actions">
                         <button
-                          className={`action-button accept ${!acceptanceCheck.canAccept ? 'disabled' : ''}`}
+                          className={`action-button accept ${!acceptanceCheck.canAccept || isOwnOrder ? 'disabled' : ''}`}
                           onClick={() => showAcceptConfirmation(order)}
-                          disabled={acceptingOrder === order.id || !acceptanceCheck.canAccept}
-                          title={!acceptanceCheck.canAccept ? acceptanceCheck.reason : ''}
+                          disabled={acceptingOrder === order.id || !acceptanceCheck.canAccept || isOwnOrder}
+                          title={isOwnOrder ? "This is your own service request" : (!acceptanceCheck.canAccept ? acceptanceCheck.reason : '')}
                         >
                           {acceptingOrder === order.id ? (
                             <>
@@ -1422,8 +1522,27 @@ const CourierHome = () => {
             </div>
 
             <div className="modal-bodys order-details-body">
+              {/* Show own order warning */}
+              {selectedOrder.customerId === userData?.customerId && (
+                <div className="own-order-warning">
+                  <UserX size={24} />
+                  <div className="warning-content">
+                    <h4>Your Own Service Request</h4>
+                    <p>This is your own service request. You cannot accept your own orders.</p>
+                    <div className="warning-actions">
+                      <button
+                        className="view-customer-button"
+                        onClick={() => navigate('/customer/orders')}
+                      >
+                        View as Customer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Show rejection warning if applicable */}
-              {selectedOrder.rejectionReason && (
+              {selectedOrder.rejectionReason && selectedOrder.customerId !== userData?.customerId && (
                 <div className={`rejection-warning ${selectedOrder.conflictType}`}>
                   <AlertCircle size={24} />
                   <div className="rejection-message">
@@ -1475,8 +1594,6 @@ const CourierHome = () => {
                               e.target.nextSibling.style.display = 'flex';
                             }}
                           />
-                          {/* <Image size={32} className="image-placeholder-icon" />
-                          <span>Image {index + 1}</span> */}
                         </div>
                       </div>
                     ))}
@@ -1625,8 +1742,8 @@ const CourierHome = () => {
                   Close
                 </button>
 
-                {/* Only show accept button if there's no rejection reason */}
-                {!selectedOrder.rejectionReason && (
+                {/* Only show accept button if not own order and no rejection reason */}
+                {selectedOrder.customerId !== userData?.customerId && !selectedOrder.rejectionReason && (
                   <button
                     className="action-button accept"
                     onClick={() => showAcceptConfirmation(selectedOrder)}
@@ -1710,20 +1827,23 @@ const CourierHome = () => {
                 >
                   Close
                 </button>
-                <button
-                  className="action-button accept"
-                  onClick={() => showAcceptConfirmation(selectedOrder)}
-                  disabled={acceptingOrder === selectedOrder.id}
-                >
-                  {acceptingOrder === selectedOrder.id ? (
-                    <>
-                      <Loader size={16} className="animate-spin" />
-                      Accepting...
-                    </>
-                  ) : (
-                    selectedOrder.requestType === 'current' ? 'Accept Order' : 'Accept Book'
-                  )}
-                </button>
+                {/* Don't show accept button if it's the courier's own order */}
+                {selectedOrder.customerId !== userData?.customerId && (
+                  <button
+                    className="action-button accept"
+                    onClick={() => showAcceptConfirmation(selectedOrder)}
+                    disabled={acceptingOrder === selectedOrder.id}
+                  >
+                    {acceptingOrder === selectedOrder.id ? (
+                      <>
+                        <Loader size={16} className="animate-spin" />
+                        Accepting...
+                      </>
+                    ) : (
+                      selectedOrder.requestType === 'current' ? 'Accept Order' : 'Accept Book'
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1840,6 +1960,68 @@ const CourierHome = () => {
           isOpen={showRemarksModal}
           onClose={() => setShowRemarksModal(false)}
         />
+      )}
+
+      {/* ACCEPTANCE COUNTDOWN MODAL */}
+      {showAcceptanceCountdownModal && acceptedOrderForCountdown && (
+        <div className="modal-overlay" onClick={() => { }}>
+          <div className="acceptance-countdown-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Order Accepted - Confirmation Window</h2>
+            </div>
+            <div className="modal-body">
+              <div className="countdown-content">
+                {/* <div className="countdown-icon">
+                  <Clock size={48} className="text-green-500" />
+                </div> */}
+                <div className="countdown-message">
+                  <h3>Order Successfully Accepted!</h3>
+                  <p>You have <strong>{acceptanceCountdownTimer}</strong> seconds to cancel this acceptance if you change your mind.</p>
+                  <div className="order-summary">
+                    <p><strong>Order:</strong> {acceptedOrderForCountdown.orderNumber}</p>
+                    <p><strong>Pickup:</strong> {acceptedOrderForCountdown.pickupLocation}</p>
+                    <p><strong>Delivery:</strong> {acceptedOrderForCountdown.deliveryLocation}</p>
+                    <p><strong>Earnings:</strong> ₱{acceptedOrderForCountdown.payment}</p>
+                  </div>
+                </div>
+                <div className="countdown-timer">
+                  <div className="timer-circle">
+                    {acceptanceCountdownTimer}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="cancel-button secondary"
+                  onClick={cancelAcceptedOrder}
+                  disabled={acceptingOrder === acceptedOrderForCountdown.id}
+                >
+                  Cancel Acceptance
+                </button>
+                <button
+                  className="proceed-button"
+                  onClick={() => {
+                    // Force proceed
+                    setIsAcceptingWithTimer(false);
+                    setShowAcceptanceCountdownModal(false);
+                    setAcceptanceCountdownTimer(null);
+                    navigate(acceptedOrderForCountdown.requestType === 'current' ? '/courier/history' : '/courier/book', {
+                      state: {
+                        acceptedOrder: {
+                          ...acceptedOrderForCountdown,
+                          status: 'Accepted',
+                          deliveryStatus: 'accepted'
+                        }
+                      }
+                    });
+                  }}
+                >
+                  Proceed Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* FOOTER */}

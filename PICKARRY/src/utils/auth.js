@@ -1,119 +1,72 @@
-// // utils/auth.js
-
-// // Store user session
-// export const setUserSession = (userType, userData) => {
-//   try {
-//     localStorage.setItem('userType', userType);
-//     localStorage.setItem('userData', JSON.stringify(userData));
-//   } catch (err) {
-//     console.error('Error setting user session:', err);
-//   }
-// };
-
-// // Retrieve user session
-// export const getUserSession = () => {
-//   try {
-//     const userType = localStorage.getItem('userType');
-//     const userData = localStorage.getItem('userData');
-
-//     if (userType && userData) {
-//       return {
-//         userType,
-//         userData: JSON.parse(userData)
-//       };
-//     }
-//     return null;
-//   } catch (err) {
-//     console.error('Error reading user session:', err);
-//     return null;
-//   }
-// };
-
-// // Clear user session
-// export const clearUserSession = () => {
-//   try {
-//     localStorage.removeItem('userType');
-//     localStorage.removeItem('userData');
-//   } catch (err) {
-//     console.error('Error clearing user session:', err);
-//   }
-// };
-
-// // Check if any user is authenticated
-// export const isAuthenticated = () => getUserSession() !== null;
-
-// // Check user roles
-// export const isAdmin = () => {
-//   const session = getUserSession();
-//   return session?.userType === 'admin';
-// };
-
-// export const isCustomer = () => {
-//   const session = getUserSession();
-//   return session?.userType === 'customer';
-// };
-
-// export const isCourier = () => {
-//   const session = getUserSession();
-//   return session?.userType === 'courier';
-// };
-
-// // Get current user data directly
-// export const getCurrentUser = () => getUserSession()?.userData || null;
-
 // utils/auth.js
-import { supabase } from './supabaseClient';
 
 // Store user session
-export const setUserSession = async (userType, userData) => {
+export const setUserSession = (userType, userData) => {
   try {
-    // Get the actual Supabase user ID
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    console.log('🔧 Setting user session:', { userType, userData });
     
     const sessionData = {
       userType,
-      userData: {
-        ...userData,
-        // Include the actual Supabase user ID
-        id: authUser?.id || userData.id,
-        email: authUser?.email || userData.email
-      },
-      // Store the Supabase session separately
-      supabaseUserId: authUser?.id
+      userData,
+      timestamp: new Date().getTime()
     };
 
     localStorage.setItem('userType', userType);
-    localStorage.setItem('userData', JSON.stringify(sessionData.userData));
-    localStorage.setItem('supabaseSession', JSON.stringify(sessionData));
+    localStorage.setItem('userData', JSON.stringify(userData));
+    localStorage.setItem('userSession', JSON.stringify(sessionData));
     
-    console.log('User session set:', sessionData);
+    console.log('✅ User session set successfully');
+    return true;
   } catch (err) {
-    console.error('Error setting user session:', err);
+    console.error('❌ Error setting user session:', err);
+    return false;
   }
 };
 
 // Retrieve user session
 export const getUserSession = () => {
   try {
+    // Try to get from unified session storage first
+    const sessionStr = localStorage.getItem('userSession');
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      
+      // Check if session is expired (optional: 24 hours)
+      const now = new Date().getTime();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (now - session.timestamp > maxAge) {
+        console.log('🕒 Session expired, clearing...');
+        clearUserSession();
+        return null;
+      }
+      
+      return session;
+    }
+
+    // Fallback to old format for backward compatibility
     const userType = localStorage.getItem('userType');
-    const userData = localStorage.getItem('userData');
-    const supabaseSession = localStorage.getItem('supabaseSession');
+    const userDataStr = localStorage.getItem('userData');
 
-    // Prefer the supabaseSession if available
-    if (supabaseSession) {
-      return JSON.parse(supabaseSession);
-    }
-
-    // Fallback to old format
-    if (userType && userData) {
-      return {
+    if (userType && userDataStr) {
+      console.log('🔍 Found old format session, migrating...');
+      const userData = JSON.parse(userDataStr);
+      
+      // Migrate to new format
+      const sessionData = {
         userType,
-        userData: JSON.parse(userData)
+        userData,
+        timestamp: new Date().getTime()
       };
+      
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+      return sessionData;
     }
+
+    console.log('🔍 No user session found');
     return null;
   } catch (err) {
-    console.error('Error reading user session:', err);
+    console.error('❌ Error reading user session:', err);
     return null;
   }
 };
@@ -121,87 +74,112 @@ export const getUserSession = () => {
 // Clear user session
 export const clearUserSession = () => {
   try {
+    console.log('🧹 Clearing user session...');
+    
+    // Clear all session-related items
     localStorage.removeItem('userType');
     localStorage.removeItem('userData');
-    localStorage.removeItem('supabaseSession');
+    localStorage.removeItem('userSession');
+    
+    console.log('✅ User session cleared successfully');
+    return true;
   } catch (err) {
-    console.error('Error clearing user session:', err);
-  }
-};
-
-// Get current user data with proper ID extraction
-export const getCurrentUser = () => {
-  const session = getUserSession();
-  
-  if (!session) return null;
-
-  // If we have the new session format with supabaseUserId
-  if (session.supabaseUserId) {
-    return {
-      ...session.userData,
-      id: session.supabaseUserId // Use the actual Supabase user ID
-    };
-  }
-
-  // Fallback to old format
-  return session.userData;
-};
-
-// Get user ID directly (for notifications)
-export const getUserId = async () => {
-  try {
-    // Method 1: Try to get from current session
-    const session = getCurrentUser();
-    if (session?.id) {
-      return session.id;
-    }
-
-    // Method 2: Try to get from Supabase auth directly
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser?.id) {
-      return authUser.id;
-    }
-
-    // Method 3: Try to get from session storage
-    const { data: { session: authSession } } = await supabase.auth.getSession();
-    if (authSession?.user?.id) {
-      return authSession.user.id;
-    }
-
-    console.error('Could not get user ID from any method');
-    return null;
-  } catch (error) {
-    console.error('Error getting user ID:', error);
-    return null;
+    console.error('❌ Error clearing user session:', err);
+    return false;
   }
 };
 
 // Check if any user is authenticated
 export const isAuthenticated = () => {
   const session = getUserSession();
-  if (session) return true;
-
-  // Also check if there's a Supabase session
-  try {
-    const supabaseSession = localStorage.getItem('supabase.auth.token');
-    return !!supabaseSession;
-  } catch (err) {
+  
+  if (!session) {
+    console.log('🔍 No session found in isAuthenticated()');
     return false;
   }
+  
+  // Check session age
+  const now = new Date().getTime();
+  const sessionAge = now - session.timestamp;
+  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+  
+  if (sessionAge > maxAge) {
+    console.log('🕒 Session expired in isAuthenticated()');
+    clearUserSession();
+    return false;
+  }
+  
+  console.log('✅ User is authenticated');
+  return true;
 };
 
 // Check user roles
 export const isAdmin = () => {
   const session = getUserSession();
-  return session?.userType === 'admin';
+  const isAdmin = session?.userType === 'admin';
+  console.log('👑 isAdmin check:', isAdmin);
+  return isAdmin;
 };
 
 export const isCustomer = () => {
   const session = getUserSession();
-  return session?.userType === 'customer';
+  const isCustomer = session?.userType === 'customer';
+  console.log('👤 isCustomer check:', isCustomer);
+  return isCustomer;
 };
 
 export const isCourier = () => {
   const session = getUserSession();
-  return session?.userType === 'courier';
+  const isCourier = session?.userType === 'courier';
+  console.log('🚚 isCourier check:', isCourier);
+  return isCourier;
+};
+
+// Get current user data directly
+export const getCurrentUser = () => {
+  const session = getUserSession();
+  return session?.userData || null;
+};
+
+// Get user ID directly
+export const getUserId = () => {
+  const user = getCurrentUser();
+  return user?.id || null;
+};
+
+// Helper to get user role
+export const getUserRole = () => {
+  const session = getUserSession();
+  return session?.userType || null;
+};
+
+// Verify and refresh session if needed
+export const verifySession = () => {
+  const session = getUserSession();
+  
+  if (!session) {
+    return false;
+  }
+  
+  // Check if session is recent (within last 5 minutes)
+  const now = new Date().getTime();
+  const sessionAge = now - session.timestamp;
+  const refreshThreshold = 5 * 60 * 1000; // 5 minutes
+  
+  if (sessionAge > refreshThreshold) {
+    console.log('🔄 Refreshing session timestamp...');
+    session.timestamp = now;
+    localStorage.setItem('userSession', JSON.stringify(session));
+  }
+  
+  return true;
+};
+
+// Check if session exists and is valid
+export const checkSessionValidity = () => {
+  if (!isAuthenticated()) {
+    return false;
+  }
+  
+  return verifySession();
 };

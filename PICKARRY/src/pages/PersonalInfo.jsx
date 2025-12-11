@@ -51,7 +51,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
         fetchUserData();
     }, [userType]);
 
-    // Enhanced fetch function with automatic sync detection
+    // Fixed fetch function with proper image handling
     const fetchUserData = async () => {
         try {
             setLoading(true);
@@ -65,7 +65,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
             console.log(`🔄 Fetching ${userType} data for:`, session.email);
 
             if (userType === 'courier') {
-                await fetchCourierDataWithSync(session);
+                await fetchCourierData(session);
             } else {
                 await fetchCustomerData(session);
             }
@@ -77,12 +77,38 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
         }
     };
 
-    // ENHANCED: Courier data fetch with automatic sync from customer profile
-    const fetchCourierDataWithSync = async (session) => {
-        try {
-            console.log('🔍 DEBUG: Starting enhanced courier data fetch with sync');
+    // FIXED: Simplified image URL getter
+    const getImageUrl = (imagePath) => {
+        if (!imagePath) return '';
 
-            // First, get courier data
+        console.log('DEBUG getImageUrl input:', imagePath);
+
+        // If it's already a full URL or base64
+        if (imagePath.startsWith('http') || imagePath.startsWith('data:image')) {
+            console.log('DEBUG: Already a valid URL');
+            return imagePath;
+        }
+
+        // If it's a Supabase storage path, get public URL
+        try {
+            const { data: { publicUrl } } = supabase.storage
+                .from('profile-images')
+                .getPublicUrl(imagePath);
+
+            console.log('DEBUG: Generated public URL:', publicUrl);
+
+            // Add timestamp to prevent caching
+            return `${publicUrl}?t=${Date.now()}`;
+
+        } catch (error) {
+            console.error('Error getting image URL:', error);
+            return '';
+        }
+    };
+
+    // Fixed courier data fetch
+    const fetchCourierData = async (session) => {
+        try {
             const { data: courierData, error: courierError } = await supabase
                 .from('couriers')
                 .select('*')
@@ -90,112 +116,85 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 .single();
 
             if (courierError) {
-                console.error('❌ Error fetching courier data:', courierError);
-                throw courierError;
+                console.error('Error fetching courier data:', courierError);
+                // Create new courier profile if doesn't exist
+                const newCourierData = await createNewCourierProfile(session);
+                setCurrentUser(newCourierData);
+                setFormData({
+                    full_name: newCourierData.full_name || '',
+                    email: newCourierData.email || '',
+                    phone: newCourierData.phone || '',
+                    address: newCourierData.address || '',
+                    date_of_birth: newCourierData.date_of_birth || '',
+                    gender: newCourierData.gender || ''
+                });
+                return;
             }
 
             console.log('📦 Fetched courier data:', courierData);
+            setCurrentUser(courierData);
 
-            // Then, get customer data to check for newer profile information
-            const { data: customerData, error: customerError } = await supabase
-                .from('customers')
-                .select('*')
-                .eq('email', session.email)
-                .single();
-
-            console.log('👤 Fetched customer data for sync check:', customerData);
-
-            // Determine which profile has more recent updates
-            const courierUpdated = courierData?.updated_at ? new Date(courierData.updated_at) : new Date(0);
-            const customerUpdated = customerData?.updated_at ? new Date(customerData.updated_at) : new Date(0);
-
-            console.log('🕒 Update timestamps:', {
-                courier: courierUpdated,
-                customer: customerUpdated
-            });
-
-            let mergedData = { ...courierData };
-            let syncPerformed = false;
-
-            // If customer profile has more recent personal info updates, sync to courier
-            if (customerData && customerUpdated > courierUpdated) {
-                console.log('🔄 Customer profile has newer data, syncing to courier...');
-
-                const syncData = {
-                    full_name: customerData.full_name || courierData.full_name,
-                    phone: customerData.phone || courierData.phone,
-                    address: customerData.address || courierData.address,
-                    date_of_birth: (customerData.date_of_birth || courierData.date_of_birth) || null,
-                    gender: customerData.gender || courierData.gender,
-                    profile_image: customerData.profile_image || courierData.profile_image,
-                    updated_at: new Date().toISOString()
-                };
-
-                // Update courier table with customer's personal info
-                const { error: syncError } = await supabase
-                    .from('couriers')
-                    .update(syncData)
-                    .eq('email', session.email);
-
-                if (!syncError) {
-                    console.log('✅ Successfully synced customer data to courier profile');
-                    mergedData = { ...mergedData, ...syncData };
-                    syncPerformed = true;
-                    setSyncStatus('Profile synced from customer account');
-                } else {
-                    console.warn('⚠️ Could not sync to courier table:', syncError);
-                }
-            }
-
-            // Merge data with priority to the most recent updates
-            mergedData = {
-                ...mergedData,
-                email: mergedData.email || session.email,
-                // Ensure we have the latest profile image
-                profile_image: customerData?.profile_image || courierData.profile_image || ''
-            };
-
-            console.log('🎯 Final merged data:', mergedData);
-            setCurrentUser(mergedData);
-
-            // Set base form data
+            // Set form data
             setFormData({
-                full_name: mergedData.full_name || '',
-                email: mergedData.email || '',
-                phone: mergedData.phone || '',
-                address: mergedData.address || '',
-                date_of_birth: mergedData.date_of_birth || '',
-                gender: mergedData.gender || ''
+                full_name: courierData.full_name || '',
+                email: courierData.email || '',
+                phone: courierData.phone || '',
+                address: courierData.address || '',
+                date_of_birth: courierData.date_of_birth || '',
+                gender: courierData.gender || ''
             });
 
             // Set courier-specific data
             setCourierFormData({
-                city: mergedData.city || '',
-                zip_code: mergedData.zip_code || '',
-                vehicle_type: mergedData.vehicle_type || '',
-                vehicle_brand: mergedData.vehicle_brand || '',
-                vehicle_model: mergedData.vehicle_model || '',
-                vehicle_year: mergedData.vehicle_year || '',
-                vehicle_color: mergedData.vehicle_color || '',
-                plate_number: mergedData.plate_number || '',
-                other_details: mergedData.other_details || ''
+                city: courierData.city || '',
+                zip_code: courierData.zip_code || '',
+                vehicle_type: courierData.vehicle_type || '',
+                vehicle_brand: courierData.vehicle_brand || '',
+                vehicle_model: courierData.vehicle_model || '',
+                vehicle_year: courierData.vehicle_year || '',
+                vehicle_color: courierData.vehicle_color || '',
+                plate_number: courierData.plate_number || '',
+                other_details: courierData.other_details || ''
             });
 
-            // Set images - prioritize customer profile image for consistency
-            setLicenseImagePreview(mergedData.license_image_url || '');
-            setRegistrationImagePreview(mergedData.vehicle_registration_url || '');
-            setProfileImagePreview(mergedData.profile_image || '');
-
-            if (syncPerformed) {
-                // Show sync notification for a few seconds
-                setTimeout(() => setSyncStatus(''), 5000);
-            }
+            // Set image previews
+            setProfileImagePreview(getImageUrl(courierData.profile_image));
+            setLicenseImagePreview(getImageUrl(courierData.license_image_url));
+            setRegistrationImagePreview(getImageUrl(courierData.vehicle_registration_url));
 
         } catch (error) {
-            console.error('Error in fetchCourierDataWithSync:', error);
+            console.error('Error in fetchCourierData:', error);
             const fallbackData = createFallbackData(session, userType);
             setCurrentUser(fallbackData);
             setFormDataFromFallback(fallbackData);
+        }
+    };
+
+    // Create new courier profile if doesn't exist
+    const createNewCourierProfile = async (session) => {
+        try {
+            const newCourier = {
+                email: session.email,
+                full_name: session.user_metadata?.full_name || '',
+                phone: session.user_metadata?.phone || '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('couriers')
+                .insert(newCourier)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Created new courier profile:', data);
+            return data;
+
+        } catch (error) {
+            console.error('Error creating courier profile:', error);
+            return createFallbackData(session, userType);
         }
     };
 
@@ -209,7 +208,18 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
 
             if (error) {
                 console.error('Error fetching customer data:', error);
-                throw error;
+                // Create new customer profile if doesn't exist
+                const newCustomer = await createNewCustomerProfile(session);
+                setCurrentUser(newCustomer);
+                setFormData({
+                    full_name: newCustomer.full_name || '',
+                    email: newCustomer.email || '',
+                    phone: newCustomer.phone || '',
+                    address: newCustomer.address || '',
+                    date_of_birth: newCustomer.date_of_birth || '',
+                    gender: newCustomer.gender || ''
+                });
+                return;
             }
 
             console.log('Fetched customer data:', data);
@@ -224,13 +234,41 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 gender: data.gender || ''
             });
 
-            setProfileImagePreview(data.profile_image || '');
+            setProfileImagePreview(getImageUrl(data.profile_image));
 
         } catch (error) {
             console.error('Error in fetchCustomerData:', error);
             const fallbackData = createFallbackData(session, userType);
             setCurrentUser(fallbackData);
             setFormDataFromFallback(fallbackData);
+        }
+    };
+
+    // Create new customer profile if doesn't exist
+    const createNewCustomerProfile = async (session) => {
+        try {
+            const newCustomer = {
+                email: session.email,
+                full_name: session.user_metadata?.full_name || '',
+                phone: session.user_metadata?.phone || '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('customers')
+                .insert(newCustomer)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Created new customer profile:', data);
+            return data;
+
+        } catch (error) {
+            console.error('Error creating customer profile:', error);
+            return createFallbackData(session, 'customer');
         }
     };
 
@@ -282,53 +320,12 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                     // Update local state
                     setCurrentUser(prev => ({ ...prev, ...syncData }));
                     setFormData(prev => ({ ...prev, ...syncData }));
-                    setProfileImagePreview(customerData.profile_image || '');
+                    setProfileImagePreview(getImageUrl(customerData.profile_image));
 
                     // Clear status after 3 seconds
                     setTimeout(() => setSyncStatus(''), 3000);
                 } else {
                     setSyncStatus('Sync failed');
-                }
-            } else {
-                // For customer view, we can sync from courier if needed
-                const { data: courierData, error: courierError } = await supabase
-                    .from('couriers')
-                    .select('*')
-                    .eq('email', session.email)
-                    .single();
-
-                if (!courierError && courierData) {
-                    const courierUpdated = courierData.updated_at ? new Date(courierData.updated_at) : new Date(0);
-                    const customerUpdated = customerData.updated_at ? new Date(customerData.updated_at) : new Date(0);
-
-                    if (courierUpdated > customerUpdated) {
-                        // Sync courier personal data to customer
-                        const syncData = {
-                            full_name: courierData.full_name,
-                            phone: courierData.phone,
-                            address: courierData.address,
-                            date_of_birth: courierData.date_of_birth || null,
-                            gender: courierData.gender,
-                            profile_image: courierData.profile_image,
-                            updated_at: new Date().toISOString()
-                        };
-
-                        const { error: updateError } = await supabase
-                            .from('customers')
-                            .update(syncData)
-                            .eq('email', session.email);
-
-                        if (!updateError) {
-                            setSyncStatus('Profiles synced successfully!');
-                            setCurrentUser(prev => ({ ...prev, ...syncData }));
-                            setFormData(prev => ({ ...prev, ...syncData }));
-                            setProfileImagePreview(courierData.profile_image || '');
-                            setTimeout(() => setSyncStatus(''), 3000);
-                        }
-                    } else {
-                        setSyncStatus('Profiles are already in sync');
-                        setTimeout(() => setSyncStatus(''), 3000);
-                    }
                 }
             }
 
@@ -395,11 +392,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 plate_number: fallbackData.plate_number || '',
                 other_details: fallbackData.other_details || ''
             });
-            setLicenseImagePreview(fallbackData.license_image_url || '');
-            setRegistrationImagePreview(fallbackData.vehicle_registration_url || '');
         }
-
-        setProfileImagePreview(fallbackData.profile_image || '');
     };
 
     const handleInputChange = (e) => {
@@ -434,6 +427,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
             }
 
             const previewUrl = URL.createObjectURL(file);
+            console.log(`DEBUG: ${type} image preview URL created:`, previewUrl);
 
             if (type === 'profile') {
                 setProfileImage(file);
@@ -450,6 +444,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
         }
     };
 
+    // FIXED: Upload image function with proper bucket configuration
     const uploadImage = async (file, type) => {
         try {
             const session = getCurrentUser();
@@ -457,57 +452,88 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 throw new Error('No user session found');
             }
 
-            const userIdentifier = session.user?.id ||
+            // Get user ID for unique filename
+            const userId = session.user?.id ||
                 session.id ||
                 session.email?.replace(/[^a-zA-Z0-9]/g, '_') ||
                 'user';
 
+            // Generate unique filename
             const fileExt = file.name.split('.').pop();
-            const fileName = `${userIdentifier}_${type}_${Date.now()}.${fileExt}`;
+            const fileName = `${userId}_${type}_${Date.now()}.${fileExt}`;
+            const filePath = `${userType}/${userId}/${fileName}`;
 
             console.log('Uploading file:', {
-                bucket: 'courier-documents',
-                fileName: fileName,
+                bucket: 'profile-images',
+                path: filePath,
                 fileSize: file.size,
-                fileType: file.type
+                fileType: file.type,
+                type: type
             });
 
-            const { data, error } = await supabase.storage
-                .from('courier-documents')
-                .upload(fileName, file, {
+            // Upload file to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('profile-images')
+                .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: true
                 });
 
-            if (error) {
-                console.error('Upload error:', error);
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(file);
-                });
+            if (uploadError) {
+                console.error('Upload error:', uploadError);
+                throw uploadError;
             }
 
-            console.log('Upload successful:', data);
+            console.log('Upload successful:', uploadData);
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('courier-documents')
-                .getPublicUrl(fileName);
-
-            console.log('Public URL:', publicUrl);
-            return publicUrl;
+            // Return the path for database storage
+            return filePath;
 
         } catch (error) {
             console.error(`Error uploading ${type} image:`, error);
-            return new Promise((resolve) => {
+
+            // Fallback: convert to base64 for immediate preview
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
+                reader.onload = (e) => {
+                    console.log('Falling back to base64 for', type);
+                    resolve(e.target.result); // Return base64 string
+                };
+                reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
         }
     };
 
-    // ENHANCED: Save function with improved synchronization
+    // FIXED: Handle image load error
+    const handleImageError = (e, imageType) => {
+        console.error(`Image failed to load for ${imageType}:`, e.target.src);
+
+        // Hide the broken image
+        e.target.style.display = 'none';
+
+        // Show fallback content
+        const parent = e.target.parentElement;
+        if (parent) {
+            if (imageType === 'profile') {
+                const initials = getUserInitials();
+                parent.innerHTML = `
+                    <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-500 to-blue-500">
+                        <span class="text-white font-bold text-lg">${initials}</span>
+                    </div>
+                `;
+            } else {
+                parent.innerHTML = `
+                    <div class="w-full h-full flex flex-col items-center justify-center bg-gray-800">
+                        <FileText size="32" class="text-gray-400 mb-2" />
+                        <span class="text-gray-400 text-sm">Image not available</span>
+                    </div>
+                `;
+            }
+        }
+    };
+
+    // FIXED: Save function with simplified image handling
     const handleSave = async () => {
         try {
             setSaving(true);
@@ -518,156 +544,112 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 return;
             }
 
-            let profileImageUrl = profileImagePreview;
-            let licenseImageUrl = licenseImagePreview;
-            let registrationImageUrl = registrationImagePreview;
+            let profileImagePath = currentUser?.profile_image || '';
+            let licenseImagePath = currentUser?.license_image_url || '';
+            let registrationImagePath = currentUser?.vehicle_registration_url || '';
 
             // Upload new images if selected
-            try {
-                if (profileImage) {
-                    profileImageUrl = await uploadImage(profileImage, 'profile');
-                    console.log('Profile image uploaded:', profileImageUrl);
+            if (profileImage) {
+                try {
+                    profileImagePath = await uploadImage(profileImage, 'profile');
+                    console.log('Profile image uploaded:', profileImagePath);
+                } catch (error) {
+                    console.warn('Profile image upload failed, using preview:', error);
                 }
-
-                if (licenseImage && userType === 'courier') {
-                    licenseImageUrl = await uploadImage(licenseImage, 'license');
-                    console.log('License image uploaded:', licenseImageUrl);
-                }
-
-                if (registrationImage && userType === 'courier') {
-                    registrationImageUrl = await uploadImage(registrationImage, 'registration');
-                    console.log('Registration image uploaded:', registrationImageUrl);
-                }
-            } catch (uploadError) {
-                console.warn('Image upload warning:', uploadError);
             }
 
-            // Prepare common personal data for synchronization
-            console.log('DEBUG: formData.date_of_birth before update:', formData.date_of_birth);
-            const commonPersonalData = {
+            if (licenseImage && userType === 'courier') {
+                try {
+                    licenseImagePath = await uploadImage(licenseImage, 'license');
+                    console.log('License image uploaded:', licenseImagePath);
+                } catch (error) {
+                    console.warn('License image upload failed:', error);
+                }
+            }
+
+            if (registrationImage && userType === 'courier') {
+                try {
+                    registrationImagePath = await uploadImage(registrationImage, 'registration');
+                    console.log('Registration image uploaded:', registrationImagePath);
+                } catch (error) {
+                    console.warn('Registration image upload failed:', error);
+                }
+            }
+
+            // Prepare update data
+            const updateData = {
                 full_name: formData.full_name,
                 phone: formData.phone,
                 address: formData.address,
                 date_of_birth: formData.date_of_birth || null,
                 gender: formData.gender,
-                profile_image: profileImageUrl || profileImagePreview,
+                profile_image: profileImagePath,
                 updated_at: new Date().toISOString()
             };
-            console.log('DEBUG: commonPersonalData.date_of_birth:', commonPersonalData.date_of_birth);
 
-            console.log('🔄 Starting enhanced synchronization for:', userType);
+            let tableName = userType === 'courier' ? 'couriers' : 'customers';
 
             if (userType === 'courier') {
-                // Update courier data
-                const courierUpdateData = {
-                    ...commonPersonalData,
+                Object.assign(updateData, {
                     city: courierFormData.city || null,
-                    zip_code: courierFormData.zip_code ? (parseInt(courierFormData.zip_code) || null) : null,
+                    zip_code: courierFormData.zip_code || null,
                     vehicle_type: courierFormData.vehicle_type || null,
                     vehicle_brand: courierFormData.vehicle_brand || null,
                     vehicle_model: courierFormData.vehicle_model || null,
-                    vehicle_year: courierFormData.vehicle_year ? (parseInt(courierFormData.vehicle_year) || null) : null,
+                    vehicle_year: courierFormData.vehicle_year ? parseInt(courierFormData.vehicle_year) || null : null,
                     vehicle_color: courierFormData.vehicle_color || null,
                     plate_number: courierFormData.plate_number || null,
                     other_details: courierFormData.other_details || null,
-                    license_image_url: licenseImageUrl || null,
-                    vehicle_registration_url: registrationImageUrl || null
-                };
+                    license_image_url: licenseImagePath || null,
+                    vehicle_registration_url: registrationImagePath || null
+                });
+            }
 
-                console.log('📝 Updating courier data:', courierUpdateData);
+            console.log('Updating data:', updateData);
 
-                const { error: courierError } = await supabase
-                    .from('couriers')
-                    .update(courierUpdateData)
-                    .eq('email', session.email);
+            // Update the database
+            const { error: updateError } = await supabase
+                .from(tableName)
+                .update(updateData)
+                .eq('email', session.email);
 
-                if (courierError) {
-                    console.error('❌ Error updating courier profile:', courierError);
-                    throw courierError;
-                }
-
-                // SYNC: Always update customer table with personal data
-                console.log('🔄 Synchronizing personal data to customer table');
-                const { error: customerError } = await supabase
-                    .from('customers')
-                    .update(commonPersonalData)
-                    .eq('email', session.email);
-
-                if (customerError) {
-                    console.warn('⚠️ Warning: Could not sync to customer table:', customerError);
-                } else {
-                    console.log('✅ Successfully synced to customer table');
-                }
-
-            } else {
-                // Update customer data
-                console.log('📝 Updating customer data:', commonPersonalData);
-
-                const { error: customerError } = await supabase
-                    .from('customers')
-                    .update(commonPersonalData)
-                    .eq('email', session.email);
-
-                if (customerError) {
-                    console.error('❌ Error updating customer profile:', customerError);
-                    throw customerError;
-                }
-
-                // SYNC: Check if user has courier profile and sync to it
-                console.log('🔄 Checking for courier profile to sync...');
-                const { data: courierProfile, error: courierCheckError } = await supabase
-                    .from('couriers')
-                    .select('id')
-                    .eq('email', session.email)
-                    .single();
-
-                if (courierProfile && !courierCheckError) {
-                    console.log('🔄 Synchronizing personal data to courier table');
-                    const { error: courierSyncError } = await supabase
-                        .from('couriers')
-                        .update(commonPersonalData)
-                        .eq('email', session.email);
-
-                    if (courierSyncError) {
-                        console.warn('⚠️ Warning: Could not sync to courier table:', courierSyncError);
-                    } else {
-                        console.log('✅ Successfully synced to courier table');
-                    }
-                } else {
-                    console.log('ℹ️ No courier profile found to sync with');
-                }
+            if (updateError) {
+                console.error('Error updating profile:', updateError);
+                throw updateError;
             }
 
             // Update local state
-            const updatedUserData = {
-                ...commonPersonalData,
-                ...(userType === 'courier' ? {
-                    city: courierFormData.city,
-                    zip_code: courierFormData.zip_code,
-                    vehicle_type: courierFormData.vehicle_type,
-                    vehicle_brand: courierFormData.vehicle_brand,
-                    vehicle_model: courierFormData.vehicle_model,
-                    vehicle_year: courierFormData.vehicle_year,
-                    vehicle_color: courierFormData.vehicle_color,
-                    plate_number: courierFormData.plate_number,
-                    other_details: courierFormData.other_details,
-                    license_image_url: licenseImageUrl,
-                    vehicle_registration_url: registrationImageUrl
-                } : {})
+            const updatedUser = {
+                ...currentUser,
+                ...updateData
             };
 
-            setCurrentUser(prev => ({
-                ...prev,
-                ...updatedUserData
-            }));
+            setCurrentUser(updatedUser);
 
-            if (profileImageUrl) {
-                setProfileImagePreview(profileImageUrl);
+            // Update previews
+            if (profileImagePath) {
+                setProfileImagePreview(getImageUrl(profileImagePath));
+            }
+            if (licenseImagePath && userType === 'courier') {
+                setLicenseImagePreview(getImageUrl(licenseImagePath));
+            }
+            if (registrationImagePath && userType === 'courier') {
+                setRegistrationImagePreview(getImageUrl(registrationImagePath));
             }
 
+            // Clear file objects
+            setProfileImage(null);
+            setLicenseImage(null);
+            setRegistrationImage(null);
+
             setIsEditing(false);
-            setSyncStatus('✅ Profile updated & synced successfully!');
-            setTimeout(() => setSyncStatus(''), 5000);
+            setSyncStatus('✅ Profile updated successfully!');
+
+            setTimeout(() => {
+                setSyncStatus('');
+                // Refresh data to ensure consistency
+                fetchUserData();
+            }, 3000);
 
         } catch (error) {
             console.error('❌ Error updating profile:', error);
@@ -699,11 +681,13 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 plate_number: currentUser?.plate_number || '',
                 other_details: currentUser?.other_details || ''
             });
-            setLicenseImagePreview(currentUser?.license_image_url || '');
-            setRegistrationImagePreview(currentUser?.vehicle_registration_url || '');
+
+            setLicenseImagePreview(getImageUrl(currentUser?.license_image_url));
+            setRegistrationImagePreview(getImageUrl(currentUser?.vehicle_registration_url));
         }
 
-        setProfileImagePreview(currentUser?.profile_image || '');
+        setProfileImagePreview(getImageUrl(currentUser?.profile_image));
+
         setProfileImage(null);
         setLicenseImage(null);
         setRegistrationImage(null);
@@ -744,7 +728,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
             .slice(0, 2);
     };
 
-    // Image Modal Components (same as before)
+    // Image Modal Components
     const LicenseModal = () => (
         <div className="modal-overlay" onClick={() => setShowLicenseModal(false)}>
             <div className="image-modal" onClick={(e) => e.stopPropagation()}>
@@ -756,7 +740,12 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 </div>
                 <div className="modal-body">
                     {licenseImagePreview ? (
-                        <img src={licenseImagePreview} alt="Driver's License" className="modal-image" />
+                        <img
+                            src={licenseImagePreview}
+                            alt="Driver's License"
+                            className="modal-image"
+                            onError={(e) => handleImageError(e, 'license')}
+                        />
                     ) : (
                         <div className="no-image">
                             <FileText size={48} />
@@ -779,7 +768,12 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 </div>
                 <div className="modal-body">
                     {registrationImagePreview ? (
-                        <img src={registrationImagePreview} alt="Vehicle Registration" className="modal-image" />
+                        <img
+                            src={registrationImagePreview}
+                            alt="Vehicle Registration"
+                            className="modal-image"
+                            onError={(e) => handleImageError(e, 'registration')}
+                        />
                     ) : (
                         <div className="no-image">
                             <FileText size={48} />
@@ -824,7 +818,19 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                     {licenseImagePreview && (
                         <div className="preview-section">
                             <h4>Preview:</h4>
-                            <img src={licenseImagePreview} alt="License preview" className="preview-image" />
+                            <img
+                                src={licenseImagePreview}
+                                alt="License preview"
+                                className="preview-image"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML = `
+                                        <div class="text-red-400 text-sm">
+                                            Preview failed to load. Please try uploading again.
+                                        </div>
+                                    `;
+                                }}
+                            />
                         </div>
                     )}
                 </div>
@@ -865,7 +871,19 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                     {registrationImagePreview && (
                         <div className="preview-section">
                             <h4>Preview:</h4>
-                            <img src={registrationImagePreview} alt="Registration preview" className="preview-image" />
+                            <img
+                                src={registrationImagePreview}
+                                alt="Registration preview"
+                                className="preview-image"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML = `
+                                        <div class="text-red-400 text-sm">
+                                            Preview failed to load. Please try uploading again.
+                                        </div>
+                                    `;
+                                }}
+                            />
                         </div>
                     )}
                 </div>
@@ -954,15 +972,18 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                 <div className="bg-gray-800 rounded-lg p-6">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="relative">
-                            <div className="w-16 h-16 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg">
+                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
                                 {profileImagePreview ? (
                                     <img
                                         src={profileImagePreview}
                                         alt="Profile"
-                                        className="w-16 h-16 rounded-full object-cover"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => handleImageError(e, 'profile')}
                                     />
                                 ) : (
-                                    getUserInitials()
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        {getUserInitials()}
+                                    </div>
                                 )}
                             </div>
                             {isEditing && (
@@ -986,19 +1007,12 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                         </div>
                     </div>
 
-                    {/* Enhanced Sync Notifications */}
+                    {/* Sync Notifications */}
                     {syncStatus && (
                         <div className="mt-3 p-3 bg-green-900 border border-green-700 rounded-lg">
                             <p className="text-green-200 text-sm">{syncStatus}</p>
                         </div>
                     )}
-
-                    <div className="mt-3 p-3 bg-blue-900 border border-blue-700 rounded-lg">
-                        <p className="text-blue-200 text-sm">
-                            💫 <strong>Auto-Sync Active:</strong> Profile changes (name, phone, address, profile picture)
-                            automatically sync between customer and courier accounts. Use "Sync Profile" button to manually sync.
-                        </p>
-                    </div>
 
                     {/* Application Status for Couriers */}
                     {userType === 'courier' && currentUser?.application_status && (
@@ -1015,7 +1029,6 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                     )}
                 </div>
 
-                {/* Rest of the component remains the same */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left Column - Contact Information */}
                     <div className="space-y-6">
@@ -1334,6 +1347,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                                                 src={licenseImagePreview}
                                                 alt="License preview"
                                                 className="w-full h-48 object-contain rounded-lg"
+                                                onError={(e) => handleImageError(e, 'license')}
                                             />
                                         </div>
                                     ) : (
@@ -1380,6 +1394,7 @@ const PersonalInfo = ({ onBack, userType = 'customer' }) => {
                                                 src={registrationImagePreview}
                                                 alt="Registration preview"
                                                 className="w-full h-48 object-contain rounded-lg"
+                                                onError={(e) => handleImageError(e, 'registration')}
                                             />
                                         </div>
                                     ) : (

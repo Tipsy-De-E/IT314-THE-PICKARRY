@@ -1,37 +1,20 @@
 import React, { useState } from 'react';
-import { Bell, MessageCircle, FileText, Shield, Users, Truck, Info, ChevronRight } from 'lucide-react';
+import { Bell, MessageCircle, FileText, Shield, Users, Truck, Info, ChevronRight, Edit, Eye } from 'lucide-react';
+
+// Import components - make sure these are default exports
 import SupportComplaints from './Admin-Menu/SupportComplaints';
 import AdminTermsConditions from './Admin-Menu/GeneralTermsAndConditions';
 import AdminCourierPolicies from './Admin-Menu/AdminCourierPolicies';
 import AdminCustomerPolicies from './Admin-Menu/AdminCustomerPolicies';
 import AdminAboutPickarry from './Admin-Menu/AdminAboutPickarry';
 
+// Import AboutPickarry component - ensure it's exported correctly
+import AboutPickarry from '../customer/Customer-Menu/AboutPickarry';
+
 const Menu = () => {
   const [activeView, setActiveView] = useState('menu');
 
   const menuItems = [
-    // {
-    //   icon: Bell,
-    //   title: 'Notifications',
-    //   description: 'Manage your notification preferences',
-    //   hasArrow: false,
-    //   color: 'text-blue-400'
-    // },
-    // {
-    //   icon: MessageCircle,
-    //   title: 'Support & Complaints',
-    //   description: 'Get help and submit feedback',
-    //   hasArrow: true,
-    //   color: 'text-green-400',
-    //   action: () => setActiveView('support')
-    // },
-    // {
-    //   icon: FileText,
-    //   title: 'Fare Management',
-    //   description: 'Manage fare settings and pricing',
-    //   hasArrow: true,
-    //   color: 'text-red-400'
-    // },
     {
       icon: FileText,
       title: 'General Terms & Conditions',
@@ -56,50 +39,94 @@ const Menu = () => {
       color: 'text-yellow-400',
       action: () => setActiveView('customer-policies')
     },
-    // {
-    //   icon: Truck,
-    //   title: 'Courier Policies',
-    //   description: 'Additional courier policy information',
-    //   hasArrow: true,
-    //   color: 'text-orange-400'
-    // },
     {
-      icon: Info,
-      title: 'About',
-      description: 'Learn more about Pickarry',
+      icon: Edit,
+      title: 'Edit About Page',
+      description: 'Manage team members and page content',
       hasArrow: true,
       color: 'text-indigo-400',
-      action: () => setActiveView('about')
+      action: () => setActiveView('edit-about')
+    },
+    {
+      icon: Eye,
+      title: 'View About Page',
+      description: 'Preview the about page as users see it',
+      hasArrow: true,
+      color: 'text-blue-400',
+      action: () => setActiveView('view-about')
     }
   ];
 
-  if (activeView === 'support') {
-    return <SupportComplaints onBack={() => setActiveView('menu')} />;
-  }
+  // Handle component rendering with fallback
+  const renderActiveView = () => {
+    try {
+      switch (activeView) {
+        case 'support':
+          return SupportComplaints ? (
+            <SupportComplaints onBack={() => setActiveView('menu')} />
+          ) : (
+            <div>Support component not available</div>
+          );
 
-  if (activeView === 'terms') {
-    return <AdminTermsConditions onBack={() => setActiveView('menu')} />;
-  }
+        case 'terms':
+          return AdminTermsConditions ? (
+            <AdminTermsConditions onBack={() => setActiveView('menu')} />
+          ) : (
+            <div>Terms component not available</div>
+          );
 
-  if (activeView === 'courier-policies') {
-    return <AdminCourierPolicies onBack={() => setActiveView('menu')} />;
-  }
+        case 'courier-policies':
+          return AdminCourierPolicies ? (
+            <AdminCourierPolicies onBack={() => setActiveView('menu')} />
+          ) : (
+            <div>Courier Policies component not available</div>
+          );
 
-  if (activeView === 'customer-policies') {
-    return <AdminCustomerPolicies onBack={() => setActiveView('menu')} />;
-  }
+        case 'customer-policies':
+          return AdminCustomerPolicies ? (
+            <AdminCustomerPolicies onBack={() => setActiveView('menu')} />
+          ) : (
+            <div>Customer Policies component not available</div>
+          );
 
-  if (activeView === 'about') {
-    return <AdminAboutPickarry onBack={() => setActiveView('menu')} />;
-  }
+        case 'edit-about':
+          return AdminAboutPickarry ? (
+            <AdminAboutPickarry onBack={() => setActiveView('menu')} />
+          ) : (
+            <div>Edit About component not available</div>
+          );
 
-  return (
+        case 'view-about':
+          return AboutPickarry ? (
+            <AboutPickarry onBack={() => setActiveView('menu')} isAdmin={true} />
+          ) : (
+            <div>About Pickarry component not available</div>
+          );
+
+        default:
+          return renderMenu();
+      }
+    } catch (error) {
+      console.error('Error rendering component:', error);
+      return (
+        <div className="p-6">
+          <div className="bg-red-900/50 border border-red-700 rounded-xl p-4">
+            <h3 className="text-white font-bold mb-2">Component Error</h3>
+            <p className="text-gray-300">Unable to load the requested component. Please check the console for details.</p>
+            <button
+              onClick={() => setActiveView('menu')}
+              className="mt-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
+            >
+              Back to Menu
+            </button>
+          </div>
+        </div>
+      );
+    }
+  };
+
+  const renderMenu = () => (
     <div className="space-y-6">
-      {/* <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Menu</h1>
-        <p className="text-gray-400">Settings and information</p>
-      </div> */}
-
       {/* Admin Profile Card */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:bg-gray-750 transition-all duration-200">
         <div className="flex items-center space-x-4">
@@ -143,6 +170,14 @@ const Menu = () => {
       </div>
     </div>
   );
+
+  // If we're in the main menu view, render menu
+  if (activeView === 'menu') {
+    return renderMenu();
+  }
+
+  // Otherwise render the active component
+  return renderActiveView();
 };
 
 export default Menu;

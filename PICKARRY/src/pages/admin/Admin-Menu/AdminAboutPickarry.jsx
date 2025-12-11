@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Target, Users, Award, Clock, Heart, Globe, Shield, Truck, Mail, Phone, MapPin, Edit, Save, X, Upload, Trash2, Plus, Image as ImageIcon, Loader } from 'lucide-react';
+import {
+    ArrowLeft, Target, Users, Award, Clock, Heart, Globe, Shield, Truck,
+    Mail, Phone, MapPin, Edit, Save, X, Upload, Trash2, Plus,
+    Image as ImageIcon, Loader, Database, RefreshCw, AlertCircle, CheckCircle,
+    ChevronUp, ChevronDown
+} from 'lucide-react';
+import { supabase } from '../../../utils/supabaseClient';
+
+// Create icon mapping object
+const iconComponents = {
+    ArrowLeft, Target, Users, Award, Clock, Heart, Globe, Shield, Truck,
+    Mail, Phone, MapPin
+};
 
 const AdminAboutPickarry = ({ onBack }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -7,151 +19,341 @@ const AdminAboutPickarry = ({ onBack }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [syncStatus, setSyncStatus] = useState('idle');
 
-    // Initial data
+    // Data from Supabase
     const [aboutData, setAboutData] = useState({
-        features: [
-            {
-                id: 1,
-                icon: Target,
-                title: 'Our Mission',
-                description: 'To provide fast, reliable, and affordable delivery services to every Filipino household and business.',
-                color: 'from-blue-500 to-teal-400'
-            },
-            {
-                id: 2,
-                icon: Users,
-                title: 'Our Community',
-                description: 'Serving thousands of customers and empowering local couriers across the Philippines.',
-                color: 'from-purple-500 to-pink-400'
-            },
-            {
-                id: 3,
-                icon: Award,
-                title: 'Quality Service',
-                description: 'Committed to excellence with 99% on-time delivery and 24/7 customer support.',
-                color: 'from-amber-500 to-orange-400'
-            },
-            {
-                id: 4,
-                icon: Clock,
-                title: 'Always Available',
-                description: 'Round-the-clock service to meet your delivery needs anytime, anywhere.',
-                color: 'from-emerald-500 to-green-400'
-            }
-        ],
-        stats: [
-            { id: 1, number: '50K+', label: 'Happy Customers', icon: Users },
-            { id: 2, number: '10K+', label: 'Active Couriers', icon: Truck },
-            { id: 3, number: '500K+', label: 'Deliveries Made', icon: Shield },
-            { id: 4, number: '99%', label: 'Satisfaction Rate', icon: Heart }
-        ],
-        teamMembers: [
-            {
-                id: 1,
-                name: 'Juan Dela Cruz',
-                role: 'CEO & Founder',
-                description: 'Visionary leader with 10+ years in logistics technology',
-                imageColor: 'bg-gradient-to-br from-blue-500 to-teal-400',
-                imageUrl: null,
-                isFounder: true
-            },
-            {
-                id: 2,
-                name: 'Maria Santos',
-                role: 'CTO',
-                description: 'Tech expert specializing in scalable delivery solutions',
-                imageColor: 'bg-gradient-to-br from-purple-500 to-pink-400',
-                imageUrl: null,
-                isFounder: false
-            },
-            {
-                id: 3,
-                name: 'Pedro Reyes',
-                role: 'Operations Head',
-                description: 'Ensuring seamless delivery operations nationwide',
-                imageColor: 'bg-gradient-to-br from-amber-500 to-orange-400',
-                imageUrl: null,
-                isFounder: false
-            },
-            {
-                id: 4,
-                name: 'Ana Lim',
-                role: 'Marketing Director',
-                description: 'Building brand presence across the Philippines',
-                imageColor: 'bg-gradient-to-br from-emerald-500 to-green-400',
-                imageUrl: null,
-                isFounder: false
-            },
-            {
-                id: 5,
-                name: 'Michael Tan',
-                role: 'Customer Experience Lead',
-                description: 'Dedicated to providing exceptional customer service',
-                imageColor: 'bg-gradient-to-br from-red-500 to-rose-400',
-                imageUrl: null,
-                isFounder: false
-            }
-        ],
+        features: [],
+        stats: [],
+        teamMembers: [],
         heroContent: {
-            title: 'Your Trusted Delivery Partner',
-            description: 'Pickarry is revolutionizing the delivery industry in the Philippines by connecting customers with reliable couriers for fast, secure, and affordable delivery services. We bridge the gap between urban and rural communities, making delivery accessible to all.'
+            title: '',
+            description: ''
         },
         companyInfo: {
-            title: 'Our Story',
-            paragraphs: [
-                'Founded in 2023, Pickarry started with a simple goal: to make delivery services accessible to everyone. What began as a small team of passionate individuals has grown into one of the fastest-growing delivery platforms in the Philippines.',
-                'Today, we proudly serve both urban and rural communities, bridging the gap between traditional logistics and modern technology. Our commitment to innovation, reliability, and customer satisfaction drives everything we do.'
-            ],
-            milestones: [
-                { label: 'Year Founded', value: '2023' },
-                { label: 'Provinces Served', value: '81' },
-                { label: 'Service Availability', value: '24/7' }
-            ]
+            title: '',
+            paragraphs: [],
+            milestones: []
         },
         contactInfo: {
-            email: 'support@pickarry.com',
-            phone: '1-800-PICKARRY',
-            address: 'Manila, Philippines'
+            email: '',
+            phone: '',
+            address: ''
         }
     });
 
+    // Load data from Supabase
     useEffect(() => {
-        // Load saved data from localStorage or API
-        const savedData = localStorage.getItem('pickarry_about_data');
-        if (savedData) {
-            setAboutData(JSON.parse(savedData));
-        }
+        fetchData();
     }, []);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Fetch all data in parallel
+            const [
+                pageContentResult,
+                teamMembersResult,
+                featuresResult,
+                statsResult
+            ] = await Promise.all([
+                supabase.from('about_page_content').select('*'),
+                supabase
+                    .from('team_members')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('display_order', { ascending: true }),
+                supabase
+                    .from('features')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('display_order', { ascending: true }),
+                supabase
+                    .from('stats')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('display_order', { ascending: true })
+            ]);
+
+            if (pageContentResult.error) throw pageContentResult.error;
+            if (teamMembersResult.error) throw teamMembersResult.error;
+            if (featuresResult.error) throw featuresResult.error;
+            if (statsResult.error) throw statsResult.error;
+
+            // Transform page content based on your actual table schema
+            const contentBySection = {};
+            pageContentResult.data?.forEach(item => {
+                contentBySection[item.section] = item;
+            });
+
+            // Parse the JSON fields from your table
+            const heroData = contentBySection.hero || {};
+            const storyData = contentBySection.story || {};
+            const contactData = contentBySection.contact || {};
+
+            // Transform features
+            const features = featuresResult.data?.map(feature => ({
+                id: feature.id,
+                icon: feature.icon || 'Target',
+                title: feature.title || '',
+                description: feature.description || '',
+                color: feature.color || 'from-blue-500 to-teal-400',
+                display_order: feature.display_order || 0,
+                is_active: feature.is_active || true
+            })) || [];
+
+            // Transform stats
+            const stats = statsResult.data?.map(stat => ({
+                id: stat.id,
+                number: stat.number || '',
+                label: stat.label || '',
+                icon: stat.icon || 'Users',
+                display_order: stat.display_order || 0,
+                is_active: stat.is_active || true
+            })) || [];
+
+            // Transform team members
+            const teamMembers = teamMembersResult.data?.map(member => ({
+                id: member.id,
+                name: member.name || '',
+                role: member.role || '',
+                description: member.description || '',
+                imageColor: member.image_color || 'bg-gradient-to-br from-blue-500 to-teal-400',
+                iconColor: member.icon_color || 'bg-blue-500/20 text-blue-400',
+                photoPath: member.photo_path || null,
+                photoUrl: member.photo_path ? getImageUrl(member.photo_path) : null,
+                isFounder: member.is_founder || false,
+                displayOrder: member.display_order || 0,
+                isActive: member.is_active || true
+            })) || [];
+
+            // Parse milestones from JSON
+            const milestones = storyData.stats || [];
+
+            // Parse contact info from JSON
+            const contactInfo = contactData.contact_info || {};
+
+            // Set data according to your table schema
+            setAboutData({
+                features,
+                stats,
+                teamMembers,
+                heroContent: {
+                    title: heroData.title || 'Your Trusted Delivery Partner',
+                    description: heroData.content || 'Default hero description'
+                },
+                companyInfo: {
+                    title: storyData.title || 'Our Story',
+                    paragraphs: storyData.content ? storyData.content.split('\n\n') : [],
+                    milestones: milestones
+                },
+                contactInfo: {
+                    email: contactInfo.email || 'support@pickarry.com',
+                    phone: contactInfo.phone || '1-800-PICKARRY',
+                    address: contactInfo.address || 'Manila, Philippines'
+                }
+            });
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            setError('Failed to load data. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getImageUrl = (path) => {
+        if (!path) return null;
+        const { data: { publicUrl } } = supabase.storage
+            .from('team-photos')
+            .getPublicUrl(path);
+        return publicUrl;
+    };
 
     const startEditing = (section, data = null) => {
         setEditingSection({ section, data });
         setIsEditing(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setIsSaving(true);
+        setError(null);
+        setSyncStatus('saving');
 
-        // Simulate API call
-        setTimeout(() => {
-            localStorage.setItem('pickarry_about_data', JSON.stringify(aboutData));
-            setIsSaving(false);
+        try {
+            // Save each section to Supabase
+            await Promise.all([
+                savePageContent(),
+                saveTeamMembers(),
+                saveFeatures(),
+                saveStats()
+            ]);
+
             setSaveSuccess(true);
+            setSyncStatus('success');
             setIsEditing(false);
             setEditingSection(null);
 
-            setTimeout(() => setSaveSuccess(false), 3000);
-        }, 1000);
-    };
+            // Refresh data
+            setTimeout(() => {
+                fetchData();
+                setSaveSuccess(false);
+                setSyncStatus('idle');
+            }, 2000);
 
-    const handleCancel = () => {
-        const confirmed = window.confirm('Discard changes?');
-        if (confirmed) {
-            setIsEditing(false);
-            setEditingSection(null);
+        } catch (error) {
+            console.error('Error saving data:', error);
+            setError('Failed to save changes. Please try again.');
+            setSyncStatus('error');
+        } finally {
+            setIsSaving(false);
         }
     };
 
+    const savePageContent = async () => {
+        // Prepare data according to your table schema
+        const sections = [
+            {
+                section: 'hero',
+                title: aboutData.heroContent.title,
+                content: aboutData.heroContent.description
+            },
+            {
+                section: 'story',
+                title: aboutData.companyInfo.title,
+                content: aboutData.companyInfo.paragraphs.join('\n\n'),
+                stats: aboutData.companyInfo.milestones
+            },
+            {
+                section: 'contact',
+                contact_info: {
+                    email: aboutData.contactInfo.email,
+                    phone: aboutData.contactInfo.phone,
+                    address: aboutData.contactInfo.address
+                }
+            }
+        ];
+
+        for (const sectionData of sections) {
+            const { error } = await supabase
+                .from('about_page_content')
+                .upsert({
+                    ...sectionData,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'section'
+                });
+
+            if (error) throw error;
+        }
+    };
+
+    const saveTeamMembers = async () => {
+        // First, deactivate all existing team members
+        const { error: deactivateError } = await supabase
+            .from('team_members')
+            .update({ is_active: false })
+            .eq('is_active', true);
+
+        if (deactivateError) throw deactivateError;
+
+        // Then, upsert all current team members
+        for (const [index, member] of aboutData.teamMembers.entries()) {
+            const { error } = await supabase
+                .from('team_members')
+                .upsert({
+                    id: member.id,
+                    name: member.name,
+                    role: member.role,
+                    description: member.description,
+                    image_color: member.imageColor,
+                    icon_color: member.iconColor,
+                    photo_path: member.photoPath,
+                    is_founder: member.isFounder,
+                    display_order: index,
+                    is_active: true,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'id'
+                });
+
+            if (error) throw error;
+        }
+    };
+
+    const saveFeatures = async () => {
+        // First, deactivate all existing features
+        const { error: deactivateError } = await supabase
+            .from('features')
+            .update({ is_active: false })
+            .eq('is_active', true);
+
+        if (deactivateError) throw deactivateError;
+
+        // Then, upsert all current features
+        for (const [index, feature] of aboutData.features.entries()) {
+            const { error } = await supabase
+                .from('features')
+                .upsert({
+                    id: feature.id,
+                    icon: feature.icon,
+                    title: feature.title,
+                    description: feature.description,
+                    color: feature.color,
+                    display_order: index,
+                    is_active: true,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'id'
+                });
+
+            if (error) throw error;
+        }
+    };
+
+    const saveStats = async () => {
+        // First, deactivate all existing stats
+        const { error: deactivateError } = await supabase
+            .from('stats')
+            .update({ is_active: false })
+            .eq('is_active', true);
+
+        if (deactivateError) throw deactivateError;
+
+        // Then, upsert all current stats
+        for (const [index, stat] of aboutData.stats.entries()) {
+            const { error } = await supabase
+                .from('stats')
+                .upsert({
+                    id: stat.id,
+                    number: stat.number,
+                    label: stat.label,
+                    icon: stat.icon,
+                    display_order: index,
+                    is_active: true,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'id'
+                });
+
+            if (error) throw error;
+        }
+    };
+
+    const handleCancel = () => {
+        const confirmed = window.confirm('Discard changes? All unsaved changes will be lost.');
+        if (confirmed) {
+            setIsEditing(false);
+            setEditingSection(null);
+            fetchData(); // Reload original data
+        }
+    };
+
+    // Update handlers
     const handleChange = (section, field, value) => {
         setAboutData(prev => ({
             ...prev,
@@ -190,7 +392,7 @@ const AdminAboutPickarry = ({ onBack }) => {
     };
 
     const addTeamMember = () => {
-        const newId = Math.max(...aboutData.teamMembers.map(m => m.id)) + 1;
+        const newId = Date.now();
         setAboutData(prev => ({
             ...prev,
             teamMembers: [
@@ -201,8 +403,12 @@ const AdminAboutPickarry = ({ onBack }) => {
                     role: 'Position',
                     description: 'Brief description',
                     imageColor: 'bg-gradient-to-br from-gray-500 to-gray-400',
-                    imageUrl: null,
-                    isFounder: false
+                    iconColor: 'bg-gray-500/20 text-gray-400',
+                    photoPath: null,
+                    photoUrl: null,
+                    isFounder: false,
+                    displayOrder: prev.teamMembers.length,
+                    isActive: true
                 }
             ]
         }));
@@ -219,18 +425,41 @@ const AdminAboutPickarry = ({ onBack }) => {
         }));
     };
 
+    const moveTeamMember = (index, direction) => {
+        if (
+            (direction === 'up' && index === 0) ||
+            (direction === 'down' && index === aboutData.teamMembers.length - 1)
+        ) {
+            return;
+        }
+
+        const newTeamMembers = [...aboutData.teamMembers];
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+
+        // Swap positions
+        [newTeamMembers[index], newTeamMembers[newIndex]] =
+            [newTeamMembers[newIndex], newTeamMembers[index]];
+
+        setAboutData(prev => ({
+            ...prev,
+            teamMembers: newTeamMembers
+        }));
+    };
+
     const addFeature = () => {
-        const newId = Math.max(...aboutData.features.map(f => f.id)) + 1;
+        const newId = Date.now();
         setAboutData(prev => ({
             ...prev,
             features: [
                 ...prev.features,
                 {
                     id: newId,
-                    icon: Target,
+                    icon: 'Target',
                     title: 'New Feature',
                     description: 'Feature description',
-                    color: 'from-gray-500 to-gray-400'
+                    color: 'from-gray-500 to-gray-400',
+                    display_order: prev.features.length,
+                    is_active: true
                 }
             ]
         }));
@@ -244,6 +473,35 @@ const AdminAboutPickarry = ({ onBack }) => {
         setAboutData(prev => ({
             ...prev,
             features: prev.features.filter(feature => feature.id !== id)
+        }));
+    };
+
+    const addStat = () => {
+        const newId = Date.now();
+        setAboutData(prev => ({
+            ...prev,
+            stats: [
+                ...prev.stats,
+                {
+                    id: newId,
+                    number: '0',
+                    label: 'New Stat',
+                    icon: 'Users',
+                    display_order: prev.stats.length,
+                    is_active: true
+                }
+            ]
+        }));
+    };
+
+    const removeStat = (id) => {
+        if (aboutData.stats.length <= 1) {
+            alert('Must have at least one stat');
+            return;
+        }
+        setAboutData(prev => ({
+            ...prev,
+            stats: prev.stats.filter(stat => stat.id !== id)
         }));
     };
 
@@ -266,52 +524,68 @@ const AdminAboutPickarry = ({ onBack }) => {
         setUploadingImage(true);
 
         try {
-            // In a real app, you would upload to your server/cloud storage
-            // For now, we'll create a local object URL
-            const imageUrl = URL.createObjectURL(file);
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${teamMemberId}_${Date.now()}.${fileExt}`;
+            const filePath = `team-members/${fileName}`;
 
-            // Update team member with new image
-            handleTeamMemberChange(teamMemberId, 'imageUrl', imageUrl);
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('team-photos')
+                .upload(filePath, file);
 
-            // Simulate upload delay
-            setTimeout(() => {
-                setUploadingImage(false);
-                alert('Image uploaded successfully!');
-            }, 1000);
+            if (uploadError) throw uploadError;
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('team-photos')
+                .getPublicUrl(filePath);
+
+            // Update team member
+            handleTeamMemberChange(teamMemberId, 'photoPath', filePath);
+            handleTeamMemberChange(teamMemberId, 'photoUrl', publicUrl);
+
+            alert('Image uploaded successfully!');
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert('Failed to upload image');
+            alert('Failed to upload image. Please try again.');
+        } finally {
             setUploadingImage(false);
         }
     };
 
     const renderIconSelect = (currentIcon, onChange) => {
-        const icons = [Target, Users, Award, Clock, Heart, Globe, Shield, Truck, Mail, Phone, MapPin];
+        const iconNames = Object.keys(iconComponents).filter(name =>
+            !['ArrowLeft', 'Edit', 'Save', 'X', 'Upload', 'Trash2', 'Plus', 'Loader', 'Database', 'RefreshCw', 'AlertCircle', 'CheckCircle', 'ChevronUp', 'ChevronDown'].includes(name)
+        );
 
         return (
             <div className="grid grid-cols-5 gap-2 mb-4">
-                {icons.map((Icon, index) => (
-                    <button
-                        key={index}
-                        type="button"
-                        onClick={() => onChange(Icon)}
-                        className={`p-3 rounded-lg ${currentIcon === Icon ? 'bg-gradient-to-r from-teal-500 to-blue-500' : 'bg-gray-700'}`}
-                    >
-                        <Icon className="w-5 h-5 text-white" />
-                    </button>
-                ))}
+                {iconNames.map((iconName, index) => {
+                    const IconComponent = iconComponents[iconName];
+                    return (
+                        <button
+                            key={index}
+                            type="button"
+                            onClick={() => onChange(iconName)}
+                            className={`p-3 rounded-lg ${currentIcon === iconName ? 'bg-gradient-to-r from-teal-500 to-blue-500' : 'bg-gray-700'} hover:opacity-90 transition-opacity duration-200`}
+                            title={iconName}
+                        >
+                            <IconComponent className="w-5 h-5 text-white" />
+                        </button>
+                    );
+                })}
             </div>
         );
     };
 
     const renderColorSelect = (currentColor, onChange) => {
         const colors = [
-            { name: 'Blue-Teal', value: 'from-blue-500 to-teal-400' },
-            { name: 'Purple-Pink', value: 'from-purple-500 to-pink-400' },
-            { name: 'Amber-Orange', value: 'from-amber-500 to-orange-400' },
-            { name: 'Emerald-Green', value: 'from-emerald-500 to-green-400' },
-            { name: 'Red-Rose', value: 'from-red-500 to-rose-400' },
-            { name: 'Indigo-Purple', value: 'from-indigo-500 to-purple-400' }
+            { name: 'Blue-Teal', value: 'from-blue-500 to-teal-400', bg: 'bg-gradient-to-br from-blue-500 to-teal-400' },
+            { name: 'Purple-Pink', value: 'from-purple-500 to-pink-400', bg: 'bg-gradient-to-br from-purple-500 to-pink-400' },
+            { name: 'Amber-Orange', value: 'from-amber-500 to-orange-400', bg: 'bg-gradient-to-br from-amber-500 to-orange-400' },
+            { name: 'Emerald-Green', value: 'from-emerald-500 to-green-400', bg: 'bg-gradient-to-br from-emerald-500 to-green-400' },
+            { name: 'Red-Rose', value: 'from-red-500 to-rose-400', bg: 'bg-gradient-to-br from-red-500 to-rose-400' },
+            { name: 'Indigo-Purple', value: 'from-indigo-500 to-purple-400', bg: 'bg-gradient-to-br from-indigo-500 to-purple-400' }
         ];
 
         return (
@@ -321,19 +595,26 @@ const AdminAboutPickarry = ({ onBack }) => {
                         key={index}
                         type="button"
                         onClick={() => onChange(color.value)}
-                        className={`h-10 rounded-lg ${currentColor === color.value ? 'ring-2 ring-white' : ''}`}
-                        style={{
-                            background: `linear-gradient(135deg, var(--tw-gradient-stops))`,
-                            backgroundImage: color.value.replace('from-', 'linear-gradient(135deg, #').replace('to-', ', #').replace('400', '400)')
-                        }}
-                        title={color.name}
+                        className={`h-10 rounded-lg ${currentColor === color.value ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-800' : ''}`}
                     >
+                        <div className={`w-full h-full rounded-lg ${color.bg}`}></div>
                         <span className="sr-only">{color.name}</span>
                     </button>
                 ))}
             </div>
         );
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="loading-spinner mx-auto mb-4"></div>
+                    <p className="text-gray-300">Loading data from database...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
@@ -351,13 +632,21 @@ const AdminAboutPickarry = ({ onBack }) => {
                             </button>
                             <div className="flex items-center space-x-3">
                                 <div className="p-2 bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg">
-                                    <Target className="w-6 h-6 text-white" />
+                                    <Database className="w-6 h-6 text-white" />
                                 </div>
                                 <h1 className="text-2xl font-bold text-white">About Pickarry Management</h1>
                             </div>
                         </div>
 
                         <div className="flex items-center space-x-4">
+                            <button
+                                onClick={fetchData}
+                                className="p-2 hover:bg-gray-800 rounded-lg transition-colors duration-200"
+                                title="Refresh from database"
+                            >
+                                <RefreshCw className="w-5 h-5 text-gray-300" />
+                            </button>
+
                             {isEditing ? (
                                 <div className="flex items-center space-x-2">
                                     <button
@@ -380,7 +669,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                                         ) : (
                                             <>
                                                 <Save className="w-4 h-4" />
-                                                <span>Save Changes</span>
+                                                <span>Save to Database</span>
                                             </>
                                         )}
                                     </button>
@@ -388,28 +677,56 @@ const AdminAboutPickarry = ({ onBack }) => {
                             ) : (
                                 <div className="flex items-center space-x-2">
                                     <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-blue-500 hover:opacity-90 rounded-lg transition-all duration-200"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                        <span>Edit Mode</span>
+                                    </button>
+                                    <button
                                         onClick={() => window.open('/about', '_blank')}
                                         className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
                                     >
                                         <Globe className="w-4 h-4" />
-                                        <span>View Public Page</span>
+                                        <span>View Public</span>
                                     </button>
                                 </div>
                             )}
                         </div>
                     </div>
-                    <p className="mt-2 text-gray-400 ml-14">
-                        Manage and edit all content on the About Pickarry page
-                    </p>
+                    <div className="flex items-center mt-2 ml-14 space-x-2">
+                        <Database className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-400">
+                            Connected to Supabase • {aboutData.teamMembers.length} team members • {aboutData.features.length} features
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Success Message */}
+            {/* Status Messages */}
+            {error && (
+                <div className="fixed top-20 right-4 z-50 animate-slide-in">
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-red-500 to-rose-500 text-white px-4 py-3 rounded-lg shadow-lg">
+                        <AlertCircle className="w-5 h-5" />
+                        <span>{error}</span>
+                    </div>
+                </div>
+            )}
+
             {saveSuccess && (
                 <div className="fixed top-20 right-4 z-50 animate-slide-in">
                     <div className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white px-4 py-3 rounded-lg shadow-lg">
-                        <Save className="w-5 h-5" />
-                        <span>Changes saved successfully!</span>
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Changes saved to database!</span>
+                    </div>
+                </div>
+            )}
+
+            {syncStatus === 'saving' && (
+                <div className="fixed top-20 right-4 z-50 animate-slide-in">
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white px-4 py-3 rounded-lg shadow-lg">
+                        <Loader className="w-5 h-5 animate-spin" />
+                        <span>Syncing with database...</span>
                     </div>
                 </div>
             )}
@@ -422,13 +739,13 @@ const AdminAboutPickarry = ({ onBack }) => {
                         <Edit className="w-6 h-6 text-blue-400 mt-1 flex-shrink-0" />
                         <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-bold text-lg text-white">Admin Controls</h3>
+                                <h3 className="font-bold text-lg text-white">Database Controls</h3>
                                 <span className="text-sm px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full">
-                                    {isEditing ? 'Edit Mode' : 'View Mode'}
+                                    {isEditing ? '✏️ Edit Mode' : '👁️ View Mode'}
                                 </span>
                             </div>
                             <p className="text-gray-300">
-                                Click the edit buttons to modify content. Changes will affect the public About page.
+                                All changes are saved directly to Supabase database. Changes will be visible on the public About page immediately.
                             </p>
                             {!isEditing && (
                                 <div className="flex flex-wrap gap-3 mt-4">
@@ -456,14 +773,16 @@ const AdminAboutPickarry = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* Team Section - Top Priority */}
+                {/* Team Section */}
                 <div className="mb-16 card p-6">
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-2">Leadership Team</h2>
-                            <p className="text-gray-400">Manage team members and their information</p>
+                            <p className="text-gray-400">
+                                Manage team members. Drag and drop to reorder. {aboutData.teamMembers.length} active members.
+                            </p>
                         </div>
-                        {!isEditing && (
+                        {isEditing && (
                             <button
                                 onClick={addTeamMember}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-blue-500 hover:opacity-90 rounded-lg transition-all duration-200"
@@ -474,48 +793,48 @@ const AdminAboutPickarry = ({ onBack }) => {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                        {aboutData.teamMembers.map((member) => (
+                    <div className="space-y-4">
+                        {aboutData.teamMembers.map((member, index) => (
                             <div
                                 key={member.id}
-                                className={`relative group p-4 bg-gray-800/50 border rounded-xl hover:border-teal-500/30 transition-all duration-200 ${member.isFounder ? 'border-2 border-teal-500' : 'border-gray-700'}`}
+                                className={`flex items-center p-4 bg-gray-800/50 border rounded-xl hover:border-teal-500/30 transition-all duration-200 ${member.isFounder ? 'border-2 border-teal-500' : 'border-gray-700'}`}
                             >
-                                {!isEditing && (
-                                    <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                {isEditing && (
+                                    <div className="flex flex-col mr-4 space-y-1">
                                         <button
-                                            onClick={() => startEditing('teamMember', member)}
-                                            className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg"
-                                            title="Edit"
+                                            onClick={() => moveTeamMember(index, 'up')}
+                                            className="p-1 bg-gray-700 hover:bg-gray-600 rounded"
+                                            disabled={index === 0}
                                         >
-                                            <Edit className="w-3 h-3" />
+                                            <ChevronUp className="w-3 h-3" />
                                         </button>
                                         <button
-                                            onClick={() => removeTeamMember(member.id)}
-                                            className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
-                                            title="Remove"
+                                            onClick={() => moveTeamMember(index, 'down')}
+                                            className="p-1 bg-gray-700 hover:bg-gray-600 rounded"
+                                            disabled={index === aboutData.teamMembers.length - 1}
                                         >
-                                            <Trash2 className="w-3 h-3 text-red-400" />
+                                            <ChevronDown className="w-3 h-3" />
                                         </button>
                                     </div>
                                 )}
 
-                                {/* Image Upload Area */}
-                                <div className="relative w-24 h-24 mx-auto mb-4">
-                                    <div className={`w-full h-full ${member.imageColor} rounded-full overflow-hidden shadow-lg`}>
-                                        {member.imageUrl ? (
+                                {/* Image */}
+                                <div className="relative mr-4">
+                                    <div className={`w-20 h-20 ${member.imageColor} rounded-full overflow-hidden shadow-lg border-2 border-gray-700`}>
+                                        {member.photoUrl ? (
                                             <img
-                                                src={member.imageUrl}
+                                                src={member.photoUrl}
                                                 alt={member.name}
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
-                                            <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-2xl">
+                                            <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-xl">
                                                 {member.name.split(' ').map(n => n[0]).join('')}
                                             </div>
                                         )}
                                     </div>
-                                    {!isEditing && (
-                                        <label className="absolute bottom-0 right-0 p-1.5 bg-gray-700 hover:bg-gray-600 rounded-full cursor-pointer">
+                                    {isEditing && (
+                                        <label className="absolute bottom-0 right-0 p-1 bg-gray-700 hover:bg-gray-600 rounded-full cursor-pointer">
                                             <input
                                                 type="file"
                                                 accept="image/*"
@@ -524,82 +843,97 @@ const AdminAboutPickarry = ({ onBack }) => {
                                                 disabled={uploadingImage}
                                             />
                                             {uploadingImage ? (
-                                                <Loader className="w-4 h-4 animate-spin" />
+                                                <Loader className="w-3 h-3 animate-spin" />
                                             ) : (
-                                                <Upload className="w-4 h-4" />
+                                                <Upload className="w-3 h-3" />
                                             )}
                                         </label>
                                     )}
                                 </div>
 
-                                {isEditing && editingSection?.section === 'teamMember' && editingSection?.data?.id === member.id ? (
-                                    <div className="space-y-3">
-                                        <input
-                                            type="text"
-                                            value={member.name}
-                                            onChange={(e) => handleTeamMemberChange(member.id, 'name', e.target.value)}
-                                            className="w-full input-field"
-                                            placeholder="Name"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={member.role}
-                                            onChange={(e) => handleTeamMemberChange(member.id, 'role', e.target.value)}
-                                            className="w-full input-field"
-                                            placeholder="Role"
-                                        />
-                                        <textarea
-                                            value={member.description}
-                                            onChange={(e) => handleTeamMemberChange(member.id, 'description', e.target.value)}
-                                            className="w-full input-field"
-                                            placeholder="Description"
-                                            rows="3"
-                                        />
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={member.isFounder}
-                                                onChange={(e) => handleTeamMemberChange(member.id, 'isFounder', e.target.checked)}
-                                                className="rounded"
-                                                id={`founder-${member.id}`}
-                                            />
-                                            <label htmlFor={`founder-${member.id}`} className="text-sm">
-                                                Mark as Founder
-                                            </label>
-                                        </div>
-                                        <div className="text-sm text-gray-400">Color Scheme:</div>
-                                        {renderColorSelect(member.imageColor, (color) =>
-                                            handleTeamMemberChange(member.id, 'imageColor', color)
-                                        )}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <h3 className="font-bold text-lg text-white mb-1 text-center">
-                                            {member.name}
-                                        </h3>
-                                        <div className={`inline-block px-3 py-1 ${member.isFounder ? 'bg-gradient-to-r from-teal-500 to-blue-500' : 'bg-gray-700'} text-white text-sm font-semibold rounded-full mb-3 w-full text-center`}>
-                                            {member.role}
-                                        </div>
-                                        {member.isFounder && (
-                                            <div className="text-xs bg-teal-500/20 text-teal-400 px-2 py-1 rounded-full inline-block mb-2">
-                                                Founder
+                                {/* Member Info */}
+                                <div className="flex-1">
+                                    {isEditing ? (
+                                        <div className="space-y-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={member.name}
+                                                    onChange={(e) => handleTeamMemberChange(member.id, 'name', e.target.value)}
+                                                    className="input-field"
+                                                    placeholder="Name"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={member.role}
+                                                    onChange={(e) => handleTeamMemberChange(member.id, 'role', e.target.value)}
+                                                    className="input-field"
+                                                    placeholder="Role"
+                                                />
                                             </div>
-                                        )}
-                                        <p className="text-sm text-gray-400 text-center">
-                                            {member.description}
-                                        </p>
-                                    </>
-                                )}
+                                            <textarea
+                                                value={member.description}
+                                                onChange={(e) => handleTeamMemberChange(member.id, 'description', e.target.value)}
+                                                className="input-field"
+                                                placeholder="Description"
+                                                rows="2"
+                                            />
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={member.isFounder}
+                                                            onChange={(e) => handleTeamMemberChange(member.id, 'isFounder', e.target.checked)}
+                                                            className="rounded"
+                                                            id={`founder-${member.id}`}
+                                                        />
+                                                        <label htmlFor={`founder-${member.id}`} className="text-sm">
+                                                            Founder
+                                                        </label>
+                                                    </div>
+                                                    <div className="text-sm text-gray-400">Color:</div>
+                                                    {renderColorSelect(member.imageColor, (color) =>
+                                                        handleTeamMemberChange(member.id, 'imageColor', color)
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => removeTeamMember(member.id)}
+                                                    className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-400" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <h3 className="font-bold text-lg text-white">
+                                                {member.name}
+                                            </h3>
+                                            <div className={`inline-block px-3 py-1 ${member.isFounder ? 'bg-gradient-to-r from-teal-500 to-blue-500' : 'bg-gray-700'} text-white text-sm font-semibold rounded-full mb-2 mx-auto block text-center`}>
+                                                {member.role}
+                                            </div>
+                                            {member.isFounder && (
+                                                <div className="inline-block ml-2 text-xs bg-teal-500/20 text-teal-400 px-2 py-1 rounded-full">
+                                                    Founder
+                                                </div>
+                                            )}
+                                            <p className="text-gray-400">
+                                                {member.description}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Hero Section Editor */}
+                {/* Hero Section */}
                 <div className="mb-12 card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-white">Hero Section</h2>
-                        {!isEditing && (
+                        {isEditing && (
                             <button
                                 onClick={() => startEditing('heroContent')}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
@@ -611,7 +945,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                     </div>
 
                     <div className="text-center p-8 bg-gray-800/30 rounded-xl">
-                        {isEditing && editingSection?.section === 'heroContent' ? (
+                        {isEditing ? (
                             <div className="space-y-4 max-w-3xl mx-auto">
                                 <input
                                     type="text"
@@ -649,9 +983,11 @@ const AdminAboutPickarry = ({ onBack }) => {
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h2 className="text-xl font-bold text-white mb-2">Features</h2>
-                            <p className="text-gray-400">Manage feature cards and their content</p>
+                            <p className="text-gray-400">
+                                Manage feature cards. {aboutData.features.length} active features.
+                            </p>
                         </div>
-                        {!isEditing && (
+                        {isEditing && (
                             <button
                                 onClick={addFeature}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-blue-500 hover:opacity-90 rounded-lg transition-all duration-200"
@@ -663,141 +999,168 @@ const AdminAboutPickarry = ({ onBack }) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {aboutData.features.map((feature) => (
-                            <div
-                                key={feature.id}
-                                className="relative group p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-teal-500/30 transition-all duration-200"
-                            >
-                                {!isEditing && (
-                                    <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <button
-                                            onClick={() => startEditing('feature', feature)}
-                                            className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg"
-                                        >
-                                            <Edit className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                            onClick={() => removeFeature(feature.id)}
-                                            className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
-                                        >
-                                            <Trash2 className="w-3 h-3 text-red-400" />
-                                        </button>
-                                    </div>
-                                )}
+                        {aboutData.features.map((feature) => {
+                            const IconComponent = iconComponents[feature.icon] || Target;
 
-                                {isEditing && editingSection?.section === 'feature' && editingSection?.data?.id === feature.id ? (
-                                    <div className="space-y-4">
-                                        <div className="text-sm text-gray-400">Icon:</div>
-                                        {renderIconSelect(feature.icon, (icon) =>
-                                            handleFeatureChange(feature.id, 'icon', icon)
-                                        )}
-                                        <input
-                                            type="text"
-                                            value={feature.title}
-                                            onChange={(e) => handleFeatureChange(feature.id, 'title', e.target.value)}
-                                            className="w-full input-field text-xl font-bold"
-                                            placeholder="Feature Title"
-                                        />
-                                        <textarea
-                                            value={feature.description}
-                                            onChange={(e) => handleFeatureChange(feature.id, 'description', e.target.value)}
-                                            className="w-full input-field"
-                                            placeholder="Feature Description"
-                                            rows="3"
-                                        />
-                                        <div className="text-sm text-gray-400">Color Scheme:</div>
-                                        {renderColorSelect(feature.color, (color) =>
-                                            handleFeatureChange(feature.id, 'color', color)
-                                        )}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className={`p-4 bg-gradient-to-br ${feature.color} rounded-xl inline-flex mb-6`}>
-                                            {React.createElement(feature.icon, { className: "w-6 h-6 text-white" })}
+                            return (
+                                <div
+                                    key={feature.id}
+                                    className="relative p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-teal-500/30 transition-all duration-200"
+                                >
+                                    {isEditing && (
+                                        <div className="absolute top-4 right-4 flex space-x-2">
+                                            <button
+                                                onClick={() => startEditing('feature', feature)}
+                                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                                onClick={() => removeFeature(feature.id)}
+                                                className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
+                                            >
+                                                <Trash2 className="w-3 h-3 text-red-400" />
+                                            </button>
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-3">
-                                            {feature.title}
-                                        </h3>
-                                        <p className="text-gray-300 leading-relaxed">
-                                            {feature.description}
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        ))}
+                                    )}
+
+                                    {isEditing && editingSection?.section === 'feature' && editingSection?.data?.id === feature.id ? (
+                                        <div className="space-y-4">
+                                            <div className="text-sm text-gray-400">Icon:</div>
+                                            {renderIconSelect(feature.icon, (icon) =>
+                                                handleFeatureChange(feature.id, 'icon', icon)
+                                            )}
+                                            <input
+                                                type="text"
+                                                value={feature.title}
+                                                onChange={(e) => handleFeatureChange(feature.id, 'title', e.target.value)}
+                                                className="input-field text-xl font-bold"
+                                                placeholder="Feature Title"
+                                            />
+                                            <textarea
+                                                value={feature.description}
+                                                onChange={(e) => handleFeatureChange(feature.id, 'description', e.target.value)}
+                                                className="input-field"
+                                                placeholder="Feature Description"
+                                                rows="3"
+                                            />
+                                            <div className="text-sm text-gray-400">Color Scheme:</div>
+                                            {renderColorSelect(feature.color, (color) =>
+                                                handleFeatureChange(feature.id, 'color', color)
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`p-4 bg-gradient-to-br ${feature.color} rounded-xl inline-flex mb-6`}>
+                                                <IconComponent className="w-6 h-6 text-white" />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-white mb-3">
+                                                {feature.title}
+                                            </h3>
+                                            <p className="text-gray-300 leading-relaxed">
+                                                {feature.description}
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Stats Section */}
                 <div className="mb-12 card p-6">
                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-bold text-white">Statistics</h2>
-                        <p className="text-gray-400">{aboutData.stats.length} stats displayed</p>
+                        <div>
+                            <h2 className="text-xl font-bold text-white">Statistics</h2>
+                            <p className="text-gray-400">
+                                Manage statistics. {aboutData.stats.length} active stats.
+                            </p>
+                        </div>
+                        {isEditing && (
+                            <button
+                                onClick={addStat}
+                                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-blue-500 hover:opacity-90 rounded-lg transition-all duration-200"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Add Stat</span>
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {aboutData.stats.map((stat, index) => (
-                            <div
-                                key={stat.id}
-                                className="relative group p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-teal-500/30 transition-all duration-200"
-                            >
-                                {!isEditing && (
-                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <button
-                                            onClick={() => startEditing('stat', stat)}
-                                            className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg"
-                                        >
-                                            <Edit className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                )}
+                        {aboutData.stats.map((stat) => {
+                            const IconComponent = iconComponents[stat.icon] || Users;
 
-                                {isEditing && editingSection?.section === 'stat' && editingSection?.data?.id === stat.id ? (
-                                    <div className="space-y-3">
-                                        <div className="text-sm text-gray-400">Icon:</div>
-                                        {renderIconSelect(stat.icon, (icon) =>
-                                            handleStatChange(stat.id, 'icon', icon)
-                                        )}
-                                        <input
-                                            type="text"
-                                            value={stat.number}
-                                            onChange={(e) => handleStatChange(stat.id, 'number', e.target.value)}
-                                            className="w-full input-field text-2xl font-bold text-center"
-                                            placeholder="Stat Number"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={stat.label}
-                                            onChange={(e) => handleStatChange(stat.id, 'label', e.target.value)}
-                                            className="w-full input-field text-center"
-                                            placeholder="Stat Label"
-                                        />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="p-3 bg-gradient-to-r from-teal-500 to-blue-500 rounded-xl">
-                                                {React.createElement(stat.icon, { className: "w-6 h-6 text-white" })}
+                            return (
+                                <div
+                                    key={stat.id}
+                                    className="relative p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-teal-500/30 transition-all duration-200"
+                                >
+                                    {isEditing && (
+                                        <div className="absolute top-4 right-4 flex space-x-2">
+                                            <button
+                                                onClick={() => startEditing('stat', stat)}
+                                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                                onClick={() => removeStat(stat.id)}
+                                                className="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
+                                            >
+                                                <Trash2 className="w-3 h-3 text-red-400" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {isEditing && editingSection?.section === 'stat' && editingSection?.data?.id === stat.id ? (
+                                        <div className="space-y-3">
+                                            <div className="text-sm text-gray-400">Icon:</div>
+                                            {renderIconSelect(stat.icon, (icon) =>
+                                                handleStatChange(stat.id, 'icon', icon)
+                                            )}
+                                            <input
+                                                type="text"
+                                                value={stat.number}
+                                                onChange={(e) => handleStatChange(stat.id, 'number', e.target.value)}
+                                                className="input-field text-2xl font-bold text-center"
+                                                placeholder="Stat Number"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={stat.label}
+                                                onChange={(e) => handleStatChange(stat.id, 'label', e.target.value)}
+                                                className="input-field text-center"
+                                                placeholder="Stat Label"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="p-3 bg-gradient-to-r from-teal-500 to-blue-500 rounded-xl">
+                                                    <IconComponent className="w-6 h-6 text-white" />
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="text-3xl font-bold text-white mb-2">
-                                            {stat.number}
-                                        </div>
-                                        <div className="text-gray-300 font-medium">
-                                            {stat.label}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        ))}
+                                            <div className="text-3xl font-bold text-white mb-2">
+                                                {stat.number}
+                                            </div>
+                                            <div className="text-gray-300 font-medium">
+                                                {stat.label}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Company Info Editor */}
+                {/* Company Info */}
                 <div className="mb-12 card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-white">Company Story</h2>
-                        {!isEditing && (
+                        {isEditing && (
                             <button
                                 onClick={() => startEditing('companyInfo')}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
@@ -809,13 +1172,13 @@ const AdminAboutPickarry = ({ onBack }) => {
                     </div>
 
                     <div className="p-8 bg-gray-800/30 rounded-xl">
-                        {isEditing && editingSection?.section === 'companyInfo' ? (
+                        {isEditing ? (
                             <div className="space-y-6">
                                 <input
                                     type="text"
                                     value={aboutData.companyInfo.title}
                                     onChange={(e) => handleChange('companyInfo', 'title', e.target.value)}
-                                    className="w-full input-field text-2xl font-bold"
+                                    className="input-field text-2xl font-bold"
                                     placeholder="Section Title"
                                 />
                                 <div className="space-y-3">
@@ -829,16 +1192,22 @@ const AdminAboutPickarry = ({ onBack }) => {
                                                 newParagraphs[index] = e.target.value;
                                                 handleChange('companyInfo', 'paragraphs', newParagraphs);
                                             }}
-                                            className="w-full input-field"
+                                            className="input-field"
                                             placeholder={`Paragraph ${index + 1}`}
                                             rows="3"
                                         />
                                     ))}
+                                    <button
+                                        onClick={() => handleChange('companyInfo', 'paragraphs', [...aboutData.companyInfo.paragraphs, ''])}
+                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
+                                    >
+                                        Add Paragraph
+                                    </button>
                                 </div>
                                 <div className="space-y-3">
                                     <div className="text-sm text-gray-400">Milestones:</div>
                                     {aboutData.companyInfo.milestones.map((milestone, index) => (
-                                        <div key={index} className="flex space-x-3">
+                                        <div key={index} className="flex space-x-3 items-center">
                                             <input
                                                 type="text"
                                                 value={milestone.value}
@@ -861,8 +1230,23 @@ const AdminAboutPickarry = ({ onBack }) => {
                                                 className="flex-2 input-field"
                                                 placeholder="Label"
                                             />
+                                            <button
+                                                onClick={() => {
+                                                    const newMilestones = aboutData.companyInfo.milestones.filter((_, i) => i !== index);
+                                                    handleChange('companyInfo', 'milestones', newMilestones);
+                                                }}
+                                                className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg"
+                                            >
+                                                <Trash2 className="w-4 h-4 text-red-400" />
+                                            </button>
                                         </div>
                                     ))}
+                                    <button
+                                        onClick={() => handleChange('companyInfo', 'milestones', [...aboutData.companyInfo.milestones, { value: '', label: '' }])}
+                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
+                                    >
+                                        Add Milestone
+                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -875,28 +1259,30 @@ const AdminAboutPickarry = ({ onBack }) => {
                                         {para}
                                     </p>
                                 ))}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                                    {aboutData.companyInfo.milestones.map((milestone, index) => (
-                                        <div key={index} className="text-center p-4 bg-gray-800/50 rounded-lg">
-                                            <div className="text-3xl font-bold text-teal-400 mb-2">
-                                                {milestone.value}
+                                {aboutData.companyInfo.milestones.length > 0 && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                                        {aboutData.companyInfo.milestones.map((milestone, index) => (
+                                            <div key={index} className="text-center p-4 bg-gray-800/50 rounded-lg">
+                                                <div className="text-3xl font-bold text-teal-400 mb-2">
+                                                    {milestone.value}
+                                                </div>
+                                                <div className="text-gray-300 font-medium">
+                                                    {milestone.label}
+                                                </div>
                                             </div>
-                                            <div className="text-gray-300 font-medium">
-                                                {milestone.label}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Contact Info Editor */}
+                {/* Contact Info */}
                 <div className="card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-white">Contact Information</h2>
-                        {!isEditing && (
+                        {isEditing && (
                             <button
                                 onClick={() => startEditing('contactInfo')}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
@@ -908,7 +1294,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                     </div>
 
                     <div className="bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-8">
-                        {isEditing && editingSection?.section === 'contactInfo' ? (
+                        {isEditing ? (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-3">
                                     <label className="block text-sm text-gray-400">Email</label>
@@ -916,7 +1302,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                                         type="email"
                                         value={aboutData.contactInfo.email}
                                         onChange={(e) => handleChange('contactInfo', 'email', e.target.value)}
-                                        className="w-full input-field"
+                                        className="input-field"
                                         placeholder="Email address"
                                     />
                                 </div>
@@ -926,7 +1312,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                                         type="text"
                                         value={aboutData.contactInfo.phone}
                                         onChange={(e) => handleChange('contactInfo', 'phone', e.target.value)}
-                                        className="w-full input-field"
+                                        className="input-field"
                                         placeholder="Phone number"
                                     />
                                 </div>
@@ -936,7 +1322,7 @@ const AdminAboutPickarry = ({ onBack }) => {
                                         type="text"
                                         value={aboutData.contactInfo.address}
                                         onChange={(e) => handleChange('contactInfo', 'address', e.target.value)}
-                                        className="w-full input-field"
+                                        className="input-field"
                                         placeholder="Address"
                                     />
                                 </div>
@@ -977,73 +1363,30 @@ const AdminAboutPickarry = ({ onBack }) => {
                         )}
                     </div>
                 </div>
+
+                {/* Save Button */}
+                {isEditing && (
+                    <div className="fixed bottom-8 right-8 z-50">
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:opacity-90 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader className="w-5 h-5 animate-spin" />
+                                    <span>Saving to Database...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Database className="w-5 h-5" />
+                                    <span>Save All Changes</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
-
-            {/* Add CSS */}
-            <style>{`
-                @keyframes slide-in {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                .animate-slide-in {
-                    animation: slide-in 0.3s ease-out;
-                }
-
-                .card {
-                    background: rgba(30, 41, 59, 0.5);
-                    border: 1px solid rgba(55, 65, 81, 0.5);
-                    border-radius: 0.75rem;
-                    backdrop-filter: blur(10px);
-                }
-
-                .btn-primary {
-                    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-                    padding: 0.5rem 1rem;
-                    border-radius: 0.5rem;
-                    font-weight: 500;
-                    transition: all 0.2s ease;
-                }
-
-                .btn-primary:hover {
-                    opacity: 0.9;
-                    transform: translateY(-1px);
-                }
-
-                .input-field {
-                    background: rgba(17, 24, 39, 0.5);
-                    border: 1px solid rgba(55, 65, 81, 0.5);
-                    border-radius: 0.5rem;
-                    padding: 0.75rem;
-                    color: white;
-                    width: 100%;
-                }
-
-                .input-field:focus {
-                    outline: none;
-                    border-color: #3b82f6;
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-                }
-
-                .loading-spinner {
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-radius: 50%;
-                    border-top: 2px solid white;
-                    width: 1rem;
-                    height: 1rem;
-                    animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 };

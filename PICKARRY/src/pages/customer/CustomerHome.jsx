@@ -289,7 +289,7 @@ const CustomerHome = () => {
   }));
 
   const categories = [
-    'A Person',
+    'Person',
     'Documents',
     'School Supplies',
     'Electronics',
@@ -631,7 +631,7 @@ const CustomerHome = () => {
           status: 'pending',
           courier_status: 'waiting',
           notes: 'Order created and waiting for courier acceptance',
-          timestamp: new Date().toISOString()
+          created_at: new Date().toISOString()
         });
 
       if (historyError) {
@@ -642,7 +642,7 @@ const CustomerHome = () => {
 
       try {
         // Notify couriers about new order
-        await notificationService.notifyNewOrder(data[0].id, {
+        await notificationService.notifyNewOrderToCouriers(data[0].id, {
           serviceType: selectedService,
           pickupLocation: pickupLocation,
           deliveryLocation: deliveryLocation,
@@ -653,7 +653,7 @@ const CustomerHome = () => {
         });
 
         // Notify customer about order received
-        await notificationService.notifyOrderUpdate(data[0].id, 'pending', currentUser.id);
+        await notificationService.notifyOrderStatusUpdate(data[0].id, 'pending', currentUser.email);
 
       } catch (error) {
         console.error('Error sending notifications:', error);
@@ -1000,7 +1000,19 @@ const CustomerHome = () => {
                       placeholder="Pickup Location"
                       onClick={(e) => e.stopPropagation()} // Prevent triggering parent click
                     />
-                    <div className="pinpoint-indicator">
+                    <div
+                      className="pinpoint-indicator"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startPickupPinpointing();
+                        // Scroll to map on desktop
+                        if (!isMobile) {
+                          const mapElement = document.querySelector('.map-section');
+                          if (mapElement) mapElement.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      style={{ cursor: 'pointer', zIndex: 10 }}
+                    >
                       <MapPin size={16} />
                     </div>
                   </div>
@@ -1021,7 +1033,19 @@ const CustomerHome = () => {
                       placeholder="Drop-off Location"
                       onClick={(e) => e.stopPropagation()} // Prevent triggering parent click
                     />
-                    <div className="pinpoint-indicator">
+                    <div
+                      className="pinpoint-indicator"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startDeliveryPinpointing();
+                        // Scroll to map on desktop
+                        if (!isMobile) {
+                          const mapElement = document.querySelector('.map-section');
+                          if (mapElement) mapElement.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      style={{ cursor: 'pointer', zIndex: 10 }}
+                    >
                       <MapPin size={16} />
                     </div>
                   </div>
@@ -1092,7 +1116,9 @@ const CustomerHome = () => {
               >
                 {getVisibleVehicles().map((vehicle) => {
                   // Calculate dynamic price for each vehicle
-                  const sampleFare = calculateFare(vehicle.type, 5, 15, false);
+                  const dist = parseFloat(estimatedDistance) || 5;
+                  const time = parseFloat(estimatedDuration) || 15;
+                  const sampleFare = calculateFare(vehicle.type, dist, time, isRushDelivery);
 
                   return (
                     <div
@@ -1167,7 +1193,7 @@ const CustomerHome = () => {
                     onLocationSelect={handleMapLocationSelect}
                     mode={mapMode}
                     onModeChange={setMapMode}
-                    height="400px"
+                    height="500px"
                   />
                 </div>
               </div>
@@ -1493,23 +1519,40 @@ const CustomerHome = () => {
                   <div className="detail-item"><div className="detail-label-with-icon"><MapPin className="detail-icon" size={16} /><span>Pickup Location:</span></div><span className="detail-value">{pickupLocation || 'Not specified'}</span></div>
                   <div className="detail-item"><span className="detail-label">Delivery Location:</span><span className="detail-value">{deliveryLocation}</span></div>
                   <div className="detail-item"><span className="detail-label">Service:</span><span className="detail-value">{selectedService}</span></div>
-                  <div className="detail-item"><span className="detail-label">Vehicle:</span><span className="detail-value">{vehicles.find(v => v.id === selectedVehicle)?.type || 'Not selected'}</span></div>
-                  <div className="detail-item"><span className="detail-label">Vehicle Price:</span><span className="detail-value">₱{vehicles.find(v => v.id === selectedVehicle)?.price || 0}</span></div>
-                  <div className="detail-item"><span className="detail-label">Distance:</span><span className="detail-value">{estimatedDistance}</span></div>
-                  <div className="detail-item"><span className="detail-label">Duration:</span><span className="detail-value">{estimatedDuration}</span></div>
-                  <div className="detail-item"><span className="detail-label">Category:</span><span className="detail-value">{selectedCategory || 'Not specified'}</span></div>
-                  <div className="detail-item"><span className="detail-label">Description:</span><span className="detail-value">{description || 'Not specified'}</span></div>
-                  <div className="detail-item"><span className="detail-label">Images Uploaded:</span><span className="detail-value">{uploadedPhotos.length}</span></div>
-                  {rushAmount && parseFloat(rushAmount) > 0 && (<div className="detail-item"><span className="detail-label">Rush Fee:</span><span className="detail-value">₱{rushAmount}</span></div>)}
-                  <div className="detail-item"><span className="detail-label">Total Cost:</span><span className="detail-value">₱{(vehicles.find(v => v.id === selectedVehicle)?.price || 0) + (rushAmount ? parseFloat(rushAmount) : 0)}</span></div>
-                  <div className="detail-item"><span className="detail-label">Delivery Time:</span><span className="detail-value">{selectedDate && selectedTime ? `${selectedDate} ${selectedTime}` : 'Not set'}</span></div>
-                  <div className="detail-item"><span className="detail-label">Payment:</span><span className="detail-value">{selectedPayment}</span></div>
-                  {acceptedCourier && (
-                    <>
-                      <div className="detail-item"><span className="detail-label">Courier:</span><span className="detail-value">{acceptedCourier.full_name}</span></div>
-                      <div className="detail-item"><span className="detail-label">Courier Vehicle:</span><span className="detail-value">{acceptedCourier.vehicle_type}</span></div>
-                    </>
-                  )}
+                  {(() => {
+                    const vehicleObj = vehicles.find(v => v.id === selectedVehicle);
+                    // Use values from the order if available, or current state
+                    const dist = parseFloat(estimatedDistance) || 5;
+                    const time = parseFloat(estimatedDuration) || 15;
+                    const fareInfo = calculateFare(vehicleObj?.type, dist, time, isRushDelivery, 0);
+
+                    return (
+                      <>
+                        <div className="detail-item"><span className="detail-label">Vehicle:</span><span className="detail-value">{vehicleObj?.type || 'Not selected'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Base Fare:</span><span className="detail-value">₱{vehicleObj?.base_fare || 0}</span></div>
+                        <div className="detail-item"><span className="detail-label">Distance Cost:</span><span className="detail-value">₱{fareInfo.breakdown.distanceCost.toFixed(2)}</span></div>
+                        <div className="detail-item"><span className="detail-label">Time Cost:</span><span className="detail-value">₱{fareInfo.breakdown.timeCost.toFixed(2)}</span></div>
+                        <div className="detail-item"><span className="detail-label">Distance:</span><span className="detail-value">{estimatedDistance || 'N/A'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Duration:</span><span className="detail-value">{estimatedDuration || 'N/A'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Category:</span><span className="detail-value">{selectedCategory || 'Not specified'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Description:</span><span className="detail-value">{description || 'Not specified'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Images Uploaded:</span><span className="detail-value">{uploadedPhotos.length}</span></div>
+                        {rushAmount && parseFloat(rushAmount) > 0 && (<div className="detail-item"><span className="detail-label">Rush Fee:</span><span className="detail-value">₱{rushAmount}</span></div>)}
+                        <div className="detail-item" style={{ marginTop: '8px', borderTop: '1px solid #374151', paddingTop: '8px' }}>
+                          <span className="detail-label" style={{ fontWeight: 'bold', color: '#14b8a6' }}>Total Cost:</span>
+                          <span className="detail-value" style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '1.2em' }}>₱{fareInfo.total.toFixed(2)}</span>
+                        </div>
+                        <div className="detail-item"><span className="detail-label">Delivery Time:</span><span className="detail-value">{selectedDate && selectedTime ? `${selectedDate} ${selectedTime}` : 'Not set'}</span></div>
+                        <div className="detail-item"><span className="detail-label">Payment:</span><span className="detail-value">{selectedPayment}</span></div>
+                        {acceptedCourier && (
+                          <>
+                            <div className="detail-item"><span className="detail-label">Courier:</span><span className="detail-value">{acceptedCourier.full_name}</span></div>
+                            <div className="detail-item"><span className="detail-label">Courier Vehicle:</span><span className="detail-value">{acceptedCourier.vehicle_type}</span></div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className="waiting-actions">
@@ -1560,145 +1603,6 @@ const CustomerHome = () => {
         />
       )}
 
-      {/* Add CSS for the location confirmation modal */}
-      <style jsx>{`
-        .location-confirm-modal {
-          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-          border-radius: 16px;
-          padding: 24px;
-          max-width: 500px;
-          width: 90%;
-          margin: 20px;
-          border: 2px solid #14b8a6;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-          position: relative;
-          z-index: 1000;
-        }
-
-        .location-confirm-header {
-          text-align: center;
-          margin-bottom: 24px;
-        }
-
-        .location-confirm-icon {
-          color: #14b8a6;
-          margin: 0 auto 12px;
-        }
-
-        .selected-location-display {
-          background: rgba(30, 41, 59, 0.8);
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 24px;
-          border: 1px solid #334155;
-        }
-
-        .location-address-box {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .location-address-text {
-          flex: 1;
-        }
-
-        .location-coordinates-box {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          background: rgba(15, 23, 42, 0.8);
-          padding: 12px;
-          border-radius: 8px;
-          border: 1px solid #475569;
-        }
-
-        .coordinate-item {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .coordinate-label {
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .coordinate-value {
-          font-family: monospace;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .location-confirm-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-top: 24px;
-        }
-
-        .location-confirm-btn {
-          padding: 16px;
-          border-radius: 12px;
-          font-weight: 600;
-          font-size: 16px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          border: none;
-          width: 100%;
-        }
-
-        .location-confirm-btn.confirm {
-          background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
-          color: white;
-        }
-
-        .location-confirm-btn.confirm:hover {
-          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(20, 184, 166, 0.3);
-        }
-
-        .location-confirm-btn.cancel {
-          background: rgba(71, 85, 105, 0.8);
-          color: #e2e8f0;
-          border: 1px solid #475569;
-        }
-
-        .location-confirm-btn.cancel:hover {
-          background: rgba(100, 116, 139, 0.8);
-          transform: translateY(-2px);
-        }
-
-        /* Modal Overlay */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          backdrop-filter: blur(5px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-        }
-
-        /* Responsive Styles */
-        @media (max-width: 768px) {
-          .location-confirm-modal {
-            padding: 20px;
-            margin: 10px;
-          }
-
-          .location-coordinates-box {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
     </div>
   );
 };

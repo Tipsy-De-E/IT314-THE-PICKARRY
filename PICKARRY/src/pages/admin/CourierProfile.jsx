@@ -203,7 +203,7 @@ const CourierProfile = () => {
         .from('customers')
         .select('id, status')
         .eq('email', courier.email)
-        .single();
+        .maybeSingle();
 
       return customer;
     } catch (error) {
@@ -730,6 +730,11 @@ const CourierProfile = () => {
         className: 'text-blue-400 hover:bg-blue-500 hover:text-white',
         onClick: async () => {
           try {
+            const numericId = parseInt(id);
+            if (isNaN(numericId)) {
+              throw new Error('Invalid courier ID');
+            }
+
             setUpdating(true);
             const { error } = await supabase
               .from('couriers')
@@ -737,9 +742,12 @@ const CourierProfile = () => {
                 background_check_status: 'approved',
                 updated_at: new Date().toISOString()
               })
-              .eq('id', parseInt(id));
+              .eq('id', numericId);
 
-            if (error) throw error;
+            if (error) {
+              console.error('Supabase error:', error);
+              throw error;
+            }
 
             setCourierData(prev => ({
               ...prev,
@@ -749,7 +757,10 @@ const CourierProfile = () => {
             alert('Background check approved successfully!');
           } catch (error) {
             console.error('Error approving background check:', error);
-            alert(`Error: ${error.message}`);
+            // Show more details if available
+            const msg = error.message || 'Unknown error';
+            const details = error.details || error.hint || '';
+            alert(`Error: ${msg} ${details ? `(${details})` : ''}`);
           } finally {
             setUpdating(false);
           }

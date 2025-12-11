@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Package, CreditCard, Clock, CheckCircle, XCircle, MessageSquare, X, TrendingUp, DollarSign, Home, FileText, Calendar, Menu, Search, Filter, Heart, Trash2, Truck, ChevronDown, Bike, Bell } from 'lucide-react';
-import { clearUserSession } from '../../utils/auth';
+import { MapPin, Package, CreditCard, Clock, CheckCircle, XCircle, MessageSquare, X, TrendingUp, DollarSign, Home, FileText, Calendar, Menu, Search, Filter, Heart, Trash2, Truck, ChevronDown, Bike, Bell, Phone, Loader2 } from 'lucide-react';
+import { clearUserSession, getCurrentUser } from '../../utils/auth';
+import { supabase } from '../../utils/supabaseClient';
 import logo from '../../assets/images/LOGO.png';
 import '../../styles/courier-history.css';
-
-const TWENTY_SECONDS = 20;
+import { notificationService } from '../../hooks/notificationService';
+import NotificationDropdown from '../../components/NotificationDropdown';
 
 const CourierDelivery = () => {
     const navigate = useNavigate();
@@ -21,203 +22,317 @@ const CourierDelivery = () => {
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentOrders, setCurrentOrders] = useState([]);
+    const [completedOrders, setCompletedOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [userData, setUserData] = useState(null);
+    const [profileImage, setProfileImage] = useState('');
+    const [updatingOrder, setUpdatingOrder] = useState(null);
 
-    // tick to re-render countdowns
-    const [now, setNow] = useState(Date.now());
-    React.useEffect(() => {
-        const id = setInterval(() => setNow(Date.now()), 1000);
-        return () => clearInterval(id);
+    // Initial load
+    useEffect(() => {
+        checkAuthentication();
     }, []);
 
-    // Dynamic status options based on active tab
-    const getStatusOptions = () => {
-        if (activeTab === 'current' || activeTab === 'book') {
-            return ['All', 'Pending', 'In Progress'];
-        } else if (activeTab === 'history') {
-            return ['All', 'Completed', 'Cancelled'];
+    // Load orders when user is authenticated
+    useEffect(() => {
+        if (userData?.id) {
+            loadOrders();
+            setupRealtimeSubscription();
         }
-        return ['All'];
-    };
+    }, [userData, activeTab]);
 
-    // Function to format date display based on tab
-    const formatDateDisplay = (date, tab) => {
-        if (tab === 'current') {
-            return `Today: ${date.split(' ').slice(-2).join(' ')}`;
-        } else if (tab === 'book') {
-            return `Book: ${date}`;
-        } else {
-            return date;
+    // Check authentication
+    const checkAuthentication = async () => {
+        try {
+            setLoading(true);
+            const session = getCurrentUser();
+
+            if (!session) {
+                navigate('/customer/auth');
+                return;
+            }
+
+            // Check if user is a registered courier
+            const { data: courierData, error } = await supabase
+                .from('couriers')
+                .select('*')
+                .eq('email', session.email)
+                .single();
+
+            if (error || !courierData) {
+                console.log('User is not a registered courier');
+                navigate('/customer/home');
+                return;
+            }
+
+            setUserData({
+                id: courierData.id,
+                name: courierData.full_name || 'Courier',
+                email: courierData.email,
+                profile_image: courierData.profile_image
+            });
+
+            if (courierData.profile_image) {
+                setProfileImage(courierData.profile_image);
+            }
+
+        } catch (error) {
+            console.error('Auth error:', error);
+            navigate('/customer/auth');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const statusOptions = getStatusOptions();
+    // Load orders from Supabase
+    const loadOrders = async () => {
+        try {
+            setLoading(true);
+            if (activeTab === 'current') {
+                // Fetch active orders (accepted, picked_up, on_the_way, arrived)
+                // Filter out 'book_for_delivery' if this page is only for immediate ones, 
+                // OR include all. Ideally, 'CourierBook' handles booked ones.
+                // For now, let's show ALL active orders assigned to this courier.
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select(`
+                        *,
+                        customers:customer_id (
+                            full_name,
+                            phone,
+                            email,
+                            profile_image
+                        )
+                    `)
+                    .eq('courier_id', userData.id)
+                    .in('status', ['accepted', 'picked_up', 'on_the_way', 'arrived'])
+                    .order('created_at', { ascending: false });
 
-    const handleLogout = () => {
-        clearUserSession();
-        navigate('/');
+                if (error) throw error;
+                setCurrentOrders(data.map(formatOrderData));
+
+            } else {
+                // Fetch history (completed, cancelled)
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select(`
+                        *,
+                        customers:customer_id (
+                            full_name,
+                            phone,
+                            email
+                        ),
+                        courier_earnings (
+                            amount
+                        )
+                    `)
+                    .eq('courier_id', userData.id)
+                    .in('status', ['completed', 'delivered', 'cancelled'])
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                setCompletedOrders(data.map(formatOrderData));
+            }
+        } catch (error) {
+            console.error('Error loading orders:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Current Orders Data
-    const [currentOrders, setCurrentOrders] = useState([
-        {
-            id: 1,
-            pickupLocation: 'Brewbox Jasaan Plaza',
-            deliveryLocation: 'Bobuntugan Zone 4',
-            item: 'Iced Coffee Matcha (2 Cups)',
-            payment: '₱200.00 COD',
-            vehicleType: 'Motorcycle',
-            category: 'Food',
-            date: 'Oct 22, 2025 1:00 PM',
-            status: 'In Progress',
-            customerName: 'Juan Dela Cruz',
-            serviceType: 'Pasugo',
-            phone: '+63 912 345 6789',
-            acceptedAt: Date.now(), // timestamp when delivery was accepted
-        },
-        {
-            id: 2,
-            pickupLocation: 'SM City Jasaan',
-            deliveryLocation: 'Zone 4, San Pedro',
-            item: 'Documents',
-            payment: '₱150.00 GCash',
-            vehicleType: 'Car',
-            category: 'Documents',
-            date: 'Oct 22, 2025 2:30 PM',
-            status: 'Pending',
-            customerName: 'Maria Santos',
-            serviceType: 'Pasundo',
-            phone: '+63 917 654 3210',
-            acceptedAt: Date.now(), // timestamp when delivery was accepted
-        },
-    ]);
+    // Format order data for display
+    const formatOrderData = (order) => {
+        return {
+            id: order.id,
+            pickupLocation: order.pickup_location,
+            deliveryLocation: order.delivery_location,
+            item: order.delivery_item,
+            payment: `₱${order.total_amount?.toFixed(2)} ${order.payment_method === 'GCash' ? 'GCash' : 'COD'}`,
+            vehicleType: order.selected_vehicle,
+            category: order.selected_category,
+            date: new Date(order.created_at).toLocaleString(),
+            status: convertStatus(order.status), // Display friendly status
+            rawStatus: order.status, // Keep raw status for logic
+            customerName: order.customers?.full_name || 'Customer',
+            phone: order.customers?.phone || 'No phone',
+            serviceType: order.selected_service,
+            earnings: order.courier_earnings?.[0]?.amount ? `₱${parseFloat(order.courier_earnings[0].amount).toFixed(2)}` : '₱0.00',
+            supabaseData: order
+        };
+    };
 
-    // Add accepted order from navigation state
-    React.useEffect(() => {
-        if (location.state?.acceptedOrder) {
-            const acceptedOrder = location.state.acceptedOrder;
-            const newDelivery = {
-                id: Date.now(), // unique id
-                pickupLocation: acceptedOrder.pickupLocation,
-                deliveryLocation: acceptedOrder.deliveryLocation,
-                item: acceptedOrder.item,
-                payment: acceptedOrder.payment,
-                status: acceptedOrder.status,
-                vehicleType: 'Motorcycle',
-                category: 'Food',
-                date: acceptedOrder.date,
-                customerName: acceptedOrder.customerName,
-                serviceType: acceptedOrder.status,
-                phone: acceptedOrder.phone,
-                acceptedAt: Date.now(), // timestamp when delivery was accepted
+    const convertStatus = (status) => {
+        const map = {
+            'pending': 'Pending',
+            'accepted': 'Accepted',
+            'picked_up': 'Picked Up',
+            'on_the_way': 'On The Way',
+            'arrived': 'Arrived',
+            'delivered': 'Completed',
+            'completed': 'Completed',
+            'cancelled': 'Cancelled'
+        };
+        return map[status] || status;
+    };
+
+    // Realtime subscription
+    const setupRealtimeSubscription = () => {
+        const subscription = supabase
+            .channel(`courier-delivery-${userData.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'orders',
+                filter: `courier_id=eq.${userData.id}`
+            }, () => {
+                loadOrders();
+            })
+            .subscribe();
+
+        return subscription;
+    };
+
+    // Update Status Logic
+    const handleUpdateStatus = async (orderId, currentStatus) => {
+        try {
+            setUpdatingOrder(orderId);
+            let newStatus;
+            let statusMessage;
+
+            // Determine next status
+            if (currentStatus === 'accepted') {
+                newStatus = 'picked_up';
+                statusMessage = 'Package picked up';
+            } else if (currentStatus === 'picked_up') {
+                newStatus = 'on_the_way';
+                statusMessage = 'On the way to delivery';
+            } else if (currentStatus === 'on_the_way') {
+                newStatus = 'arrived';
+                statusMessage = 'Arrived at location';
+            } else if (currentStatus === 'arrived') {
+                newStatus = 'delivered'; // Will be marked as completed
+                statusMessage = 'Delivery completed';
+            } else {
+                return;
+            }
+
+            // Define timestamp fields for each status
+            const timestampFields = {
+                'picked_up': 'picked_up_at',
+                'on_the_way': 'on_the_way_at',
+                'arrived': 'arrived_at',
+                'delivered': 'delivered_at'
             };
-            setCurrentOrders(prev => [newDelivery, ...prev]);
-            // Clear the state to prevent re-adding on refresh
-            navigate(location.pathname, { replace: true, state: {} });
+
+            const updates = {
+                status: newStatus,
+                courier_status: newStatus,
+                updated_at: new Date().toISOString()
+            };
+
+            // Add timestamp
+            if (timestampFields[newStatus]) {
+                updates[timestampFields[newStatus]] = new Date().toISOString();
+            }
+
+            // Update Order
+            const { error } = await supabase
+                .from('orders')
+                .update(updates)
+                .eq('id', orderId);
+
+            if (error) throw error;
+
+            // Add History
+            await supabase
+                .from('order_status_history')
+                .insert({
+                    order_id: orderId,
+                    status: newStatus,
+                    courier_status: newStatus,
+                    notes: statusMessage,
+                    created_at: new Date().toISOString()
+                });
+
+            // Calculate earnings if completed
+            if (newStatus === 'delivered') {
+                const order = currentOrders.find(o => o.id === orderId);
+                if (order && order.supabaseData) {
+                    await supabase
+                        .from('courier_earnings')
+                        .insert({
+                            courier_id: userData.id,
+                            order_id: orderId,
+                            amount: order.supabaseData.total_amount,
+                            type: 'delivery',
+                            description: `Earnings from delivery ${order.supabaseData.id}`
+                        });
+                }
+            }
+
+            // Send Notifications
+            const order = currentOrders.find(o => o.id === orderId);
+            if (order && order.supabaseData?.customers?.email) {
+                if (newStatus === 'delivered') {
+                    await notificationService.notifyOrderStatusUpdate(
+                        orderId,
+                        'delivered',
+                        order.supabaseData.customers.email,
+                        { courier_name: userData.name }
+                    );
+                } else {
+                    await notificationService.notifyDeliveryProgress(
+                        orderId,
+                        order.supabaseData.customers.email,
+                        newStatus,
+                        userData.name
+                    );
+                }
+            }
+
+        } catch (error) {
+            console.error('Error updating status:', error);
+            alert('Failed to update status');
+        } finally {
+            setUpdatingOrder(null);
         }
-    }, [location.state, navigate]);
+    };
 
-    // Completed Orders Data
-    const completedOrders = [
-        {
-            id: 3,
-            pickupLocation: 'Municipal Hall',
-            deliveryLocation: 'Zone 3, Bobuntugan',
-            item: 'Permit Papers',
-            payment: '₱120.00 COD',
-            vehicleType: 'Motorcycle',
-            category: 'Documents',
-            date: 'Oct 20, 2025 4:30 PM',
-            status: 'Completed',
-            customerName: 'Carlos Mendoza',
-            serviceType: 'Pasundo',
-            earnings: '₱50.00',
-            phone: '+63 921 456 7890',
-        },
-    ];
-
-    // Filtering logic
+    // Filter logic
     const getFilteredOrders = (orders) => {
         return orders.filter(order => {
             const matchesSearch =
-                order.pickupLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.deliveryLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.item.toLowerCase().includes(searchTerm.toLowerCase());
+                (order.pickupLocation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (order.deliveryLocation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (order.item || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-            const matchesService =
-                activeService === 'All' || order.serviceType === activeService;
-
+            const matchesService = activeService === 'All' || order.serviceType === activeService;
+            // Map activeStatus 'In Progress' to the various internal statuses
             const matchesStatus =
-                activeStatus === 'All' || order.status === activeStatus;
+                activeStatus === 'All' ||
+                (activeStatus === 'In Progress' && ['picked_up', 'on_the_way', 'arrived'].includes(order.rawStatus)) ||
+                convertStatus(order.rawStatus) === activeStatus;
 
-            const matchesCategory =
-                activeCategory === 'All' || order.category === activeCategory;
-
-            const matchesTab =
-                activeTab === 'current'
-                    ? order.status !== 'Completed' && order.status !== 'Cancelled'
-                    : order.status === 'Completed' || order.status === 'Cancelled';
-
-            return matchesSearch && matchesService && matchesStatus && matchesCategory && matchesTab;
+            return matchesSearch && matchesService && matchesStatus;
         });
     };
 
     const filteredCurrentOrders = getFilteredOrders(currentOrders);
     const filteredCompletedOrders = getFilteredOrders(completedOrders);
 
-    const totalEarnings = completedOrders
-        .filter(order => order.status === 'Completed')
-        .reduce((sum, order) => sum + parseFloat(order.earnings.replace('₱', '')), 0);
-
-    // helper for countdown
-    const getRemainingSeconds = (delivery) => {
-        if (!delivery.acceptedAt) return TWENTY_SECONDS;
-        const elapsed = Math.floor((now - delivery.acceptedAt) / 1000);
-        return Math.max(0, TWENTY_SECONDS - elapsed);
+    // Helpers
+    const getNextStatusLabel = (currentStatus) => {
+        if (currentStatus === 'accepted') return 'Pick Up Package';
+        if (currentStatus === 'picked_up') return 'Start Delivery';
+        if (currentStatus === 'on_the_way') return 'Arrived at Location';
+        if (currentStatus === 'arrived') return 'Complete Delivery';
+        return 'Update Status';
     };
 
-    const formatSeconds = (s) => {
-        const mm = String(Math.floor(s / 60)).padStart(2, '0');
-        const ss = String(s % 60).padStart(2, '0');
-        return `${mm}:${ss}`;
-    };
-
-    // cancel delivery
-    const cancelDelivery = (id) => {
-        setCurrentOrders(prev => prev.filter(d => d.id !== id));
-    };
-
-    // auto-finalize deliveries after 20 seconds (mark as accepted or in progress)
-    React.useEffect(() => {
-        currentOrders.forEach(delivery => {
-            if (delivery.acceptedAt) {
-                const elapsed = Math.floor((now - delivery.acceptedAt) / 1000);
-                if (elapsed >= TWENTY_SECONDS) {
-                    // auto-accept delivery - could update status or progress
-                    setCurrentOrders(prev => prev.map(d =>
-                        d.id === delivery.id ? { ...d, status: 'In Progress' } : d
-                    ));
-                }
-            }
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [now, currentOrders]);
-
-    const openRemarksModal = (orderId, existingRemark = '') => {
-        setSelectedOrderId(orderId);
-        setCurrentOrderRemark(existingRemark || '');
-        setShowRemarksModal(true);
-    };
-
-    const saveRemark = () => {
-        if (selectedOrderId) {
-            setRemarks({
-                ...remarks,
-                [selectedOrderId]: currentOrderRemark
-            });
-            setShowRemarksModal(false);
-            setCurrentOrderRemark('');
-            setSelectedOrderId(null);
-        }
+    const handleLogout = () => {
+        clearUserSession();
+        navigate('/');
     };
 
     return (
@@ -228,21 +343,17 @@ const CourierDelivery = () => {
                     <img src={logo} alt="Pickarry Logo" className="w-19 h-12" />
                 </div>
                 <div className="header-right">
-                    <button className="header-notification-btn">
-                        <Bell size={20} />
-                    </button>
+                    <NotificationDropdown userType="courier" />
                     <div className="courier-profile">
                         <div className="profile-avatar">
-                            <span>C</span>
+                            {profileImage ? (
+                                <img src={profileImage} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                                <span>{userData?.name?.charAt(0) || 'C'}</span>
+                            )}
                         </div>
-                        {/* <span className="profile-name">Courier</span> */}
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="logout-button"
-                    >
-                        Log Out
-                    </button>
+                    <button onClick={handleLogout} className="logout-button">Log Out</button>
                 </div>
             </div>
 
@@ -251,40 +362,32 @@ const CourierDelivery = () => {
                 <div className="courier-sidebar">
                     <div className="courier-profile-card">
                         <div className="profile-avatar-large">
-                            <span>C</span>
+                            {profileImage ? (
+                                <img src={profileImage} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
+                            ) : (
+                                <span>{userData?.name?.charAt(0) || 'C'}</span>
+                            )}
                         </div>
                         <div className="profile-info">
-                            <h3>Courier</h3>
-                            <p>courier@gmail.com</p>
+                            <h3>{userData?.name || 'Courier'}</h3>
+                            <p>{userData?.email || 'courier@gmail.com'}</p>
                         </div>
                     </div>
 
                     <nav className="courier-nav">
-                        <button
-                            onClick={() => navigate('/courier/home')}
-                            className="nav-item"
-                        >
+                        <button onClick={() => navigate('/courier/home')} className="nav-item">
                             <Home className="nav-icon w-6 h-6" />
                             <span>Home</span>
                         </button>
-                        <button
-                            onClick={() => navigate('/courier/history')}
-                            className="nav-item active"
-                        >
+                        <button onClick={() => navigate('/courier/history')} className="nav-item active">
                             <FileText className="nav-icon w-6 h-6" />
                             <span>Delivery</span>
                         </button>
-                        <button
-                            onClick={() => navigate('/courier/book')}
-                            className="nav-item"
-                        >
+                        <button onClick={() => navigate('/courier/book')} className="nav-item">
                             <Calendar className="nav-icon w-6 h-6" />
                             <span>Book</span>
                         </button>
-                        <button
-                            onClick={() => navigate('/courier/menu')}
-                            className="nav-item"
-                        >
+                        <button onClick={() => navigate('/courier/menu')} className="nav-item">
                             <Menu className="nav-icon w-6 h-6" />
                             <span>Menu</span>
                         </button>
@@ -293,338 +396,99 @@ const CourierDelivery = () => {
 
                 {/* Main Content */}
                 <div className="orders-main-content">
-
                     {/* Tabs */}
                     <div className="delivery-tabs">
                         {['current', 'history'].map(tab => (
                             <button
                                 key={tab}
                                 className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-                                onClick={() => {
-                                    setActiveTab(tab);
-                                    setActiveStatus('All');
-                                }}
+                                onClick={() => setActiveTab(tab)}
                             >
                                 {tab === 'current' ? 'Current Delivery' : 'Delivery History'}
                             </button>
                         ))}
                     </div>
 
-                    {/* SERVICE FILTERS */}
-                    <div className="delivery-filters">
-                        {['All', 'Pasundo', 'Pasugo'].map(option => (
-                            <button
-                                key={option}
-                                className={`delivery-filter-btn ${activeService === option ? 'active' : ''}`}
-                                onClick={() => setActiveService(option)}
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* SEARCH + DROPDOWNS */}
+                    {/* Toolbar */}
                     <div className="orders-toolbar">
-                        <div className="orders-toolbar-left">
-                            <div className="search-input-container">
-                                <Search className="search-icon w-5 h-5" />
-                                <input
-                                    type="text"
-                                    placeholder="Search orders..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="search-input"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="orders-toolbar-right">
-                            {/* Category Dropdown */}
-                            <div className="dropdown">
-                                <button className="dropdown-button" onClick={() => {
-                                    setShowCategoryDropdown(!showCategoryDropdown);
-                                    setShowFilterDropdown(false);
-                                }}>
-                                    Category <ChevronDown className="w-4 h-4" />
-                                </button>
-                                {showCategoryDropdown && (
-                                    <div className="dropdown-menu">
-                                        <div className="dropdown-item" onClick={() => {
-                                            setActiveCategory('All');
-                                            setShowCategoryDropdown(false);
-                                        }}>All</div>
-                                        <div className="dropdown-item" onClick={() => {
-                                            setActiveCategory('Food');
-                                            setShowCategoryDropdown(false);
-                                        }}>Food</div>
-                                        <div className="dropdown-item" onClick={() => {
-                                            setActiveCategory('Documents');
-                                            setShowCategoryDropdown(false);
-                                        }}>Documents</div>
-                                        <div className="dropdown-item" onClick={() => {
-                                            setActiveCategory('Package');
-                                            setShowCategoryDropdown(false);
-                                        }}>Package</div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Filter Dropdown (Dynamic) */}
-                            <div className="dropdown">
-                                <button className="dropdown-button" onClick={() => {
-                                    setShowFilterDropdown(!showFilterDropdown);
-                                    setShowCategoryDropdown(false);
-                                }}>
-                                    {activeStatus} <ChevronDown className="w-4 h-4" />
-                                </button>
-                                {showFilterDropdown && (
-                                    <div className="dropdown-menu">
-                                        {statusOptions.map(option => (
-                                            <div
-                                                key={option}
-                                                className={`dropdown-item ${activeStatus === option ? 'selected' : ''}`}
-                                                onClick={() => {
-                                                    setActiveStatus(option);
-                                                    setShowFilterDropdown(false);
-                                                }}
-                                            >
-                                                {option}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                        <div className="search-input-container">
+                            <Search className="search-icon w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Search orders..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="search-input"
+                            />
                         </div>
                     </div>
 
-                    {/* Current Deliveries Tab */}
-                    {activeTab === 'current' && (
-                        <div className="orders-main-content">
-                            <div className="orders-list">
-                                {filteredCurrentOrders.length === 0 ? (
-                                    <p className="no-orders-text">No orders found.</p>
-                                ) : (
-                                    filteredCurrentOrders.map((order) => (
-                                        <div key={order.id} className="order-card">
-                                            <div className="order-header">
-                                                <div className="order-pickup">
-                                                    <MapPin className="w-5 h-5" />
-                                                    <span>{order.pickupLocation}</span>
-                                                </div>
-                                                {activeTab === 'history' && (
-                                                    <div className="order-actions">
-                                                        <button className="action-button favorite"><Heart className="w-5 h-5" /></button>
-                                                        <button className="action-button delete"><Trash2 className="w-5 h-5" /></button>
-                                                    </div>
-                                                )}
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+                        </div>
+                    ) : (
+                        <div className="orders-list">
+                            {(activeTab === 'current' ? filteredCurrentOrders : filteredCompletedOrders).length === 0 ? (
+                                <p className="no-orders-text">No orders found.</p>
+                            ) : (
+                                (activeTab === 'current' ? filteredCurrentOrders : filteredCompletedOrders).map((order) => (
+                                    <div key={order.id} className="order-card">
+                                        <div className="order-header">
+                                            <div className="order-pickup">
+                                                <MapPin className="w-5 h-5" />
+                                                <span>{order.pickupLocation}</span>
                                             </div>
+                                        </div>
 
-                                            <div className="order-details">
-                                                <div className="order-detail">
-                                                    <MapPin className="detail-icon w-4 h-4" />
-                                                    <span>{order.deliveryLocation}</span>
-                                                    <span className="detail-right detail-right-time">{formatDateDisplay(order.date, activeTab)}</span>
-                                                </div>
-                                                <div className="order-detail">
-                                                    <Package className="detail-icon w-4 h-4" />
-                                                    <span>{order.item}</span>
-                                                </div>
-                                                <div className="order-detail">
-                                                    <CreditCard className="detail-icon w-4 h-4" />
-                                                    <span>{order.payment}</span>
-                                                </div>
-                                                <div className="order-detail">
-                                                    <Bike className="detail-icon w-4 h-4" />
-                                                    <span>{order.vehicleType}</span>
-                                                    <span className={`detail-right detail-right-status status-text status-${order.status.toLowerCase()}`}>{order.status}</span>
-                                                </div>
+                                        <div className="order-details">
+                                            <div className="order-detail">
+                                                <MapPin className="detail-icon w-4 h-4" />
+                                                <span>{order.deliveryLocation}</span>
                                             </div>
-
-                                            <div className="order-footer">
-                                                <button className="order-view-button">View</button>
-                                                {(order.status === 'In Progress' || order.status === 'Pending') && (
-                                                    <button className="order-action-button">
-                                                        Update Status
-                                                    </button>
-                                                )}
-                                                {(order.status === 'Completed' || order.status === 'Cancelled') && (
-                                                    <button
-                                                        className={`remarks-button ${remarks[order.id] ? 'has-remarks' : ''}`}
-                                                        onClick={() => openRemarksModal(order.id, remarks[order.id])}
-                                                    >
-                                                        <MessageSquare size={16} />
-                                                        <span>{remarks[order.id] ? 'View Remarks' : 'Add Remarks'}</span>
-                                                    </button>
-                                                )}
-                                                {order.status === 'Pending' && (
-                                                    <button className="action-button" style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.4)', color: '#14b8a6' }}>
-                                                        Auto-accept in {formatSeconds(getRemainingSeconds(order))}
-                                                    </button>
-                                                )}
-                                                {order.status === 'In Progress' && (
-                                                    <button className="action-button view" onClick={() => cancelDelivery(order.id)}>
-                                                        Cancel Delivery
-                                                    </button>
-                                                )}
+                                            <div className="order-detail">
+                                                <Package className="detail-icon w-4 h-4" />
+                                                <span>{order.item}</span>
                                             </div>
-
-                                            {remarks[order.id] && (
-                                                <div className="remarks-preview"><p className="remark-text">{remarks[order.id]}</p></div>
+                                            <div className="order-detail">
+                                                <Bike className="detail-icon w-4 h-4" />
+                                                <span>{order.vehicleType}</span>
+                                                <span className={`detail-right detail-right-status status-text status-${order.status.toLowerCase().replace(' ', '-')}`}>
+                                                    {order.status}
+                                                </span>
+                                            </div>
+                                            {order.phone && (
+                                                <div className="order-detail">
+                                                    <Phone className="detail-icon w-4 h-4" />
+                                                    <span>{order.phone}</span>
+                                                </div>
                                             )}
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
 
-                    {/* Delivery History Tab */}
-                    {activeTab === 'history' && (
-                        <>
-                            {/* Summary Cards */}
-                            <div className="earnings-summary">
-                                <div className="summary-card">
-                                    <h3>Total Earnings</h3>
-                                    <p className="earnings-amount">₱{totalEarnings.toFixed(2)}</p>
-                                    <span className="earnings-period">This Month</span>
-                                </div>
-                                <div className="summary-card">
-                                    <h3>Completed Orders</h3>
-                                    <p className="orders-count">
-                                        {completedOrders.filter(order => order.status === 'Completed').length}
-                                    </p>
-                                    <span className="orders-period">This Month</span>
-                                </div>
-                            </div>
-
-                            <div className="orders-main-content">
-                                <div className="orders-list">
-                                    {filteredCompletedOrders.length === 0 ? (
-                                        <p className="no-orders-text">No orders found.</p>
-                                    ) : (
-                                        filteredCompletedOrders.map((order) => (
-                                            <div key={order.id} className="order-card">
-                                                <div className="order-header">
-                                                    <div className="order-pickup">
-                                                        <MapPin className="w-5 h-5" />
-                                                        <span>{order.pickupLocation}</span>
-                                                    </div>
-                                                    {activeTab === 'history' && (
-                                                        <div className="order-actions">
-                                                            <button className="action-button favorite"><Heart className="w-5 h-5" /></button>
-                                                            <button className="action-button delete"><Trash2 className="w-5 h-5" /></button>
-                                                        </div>
+                                        <div className="order-footer">
+                                            {activeTab === 'current' && (
+                                                <button
+                                                    className="order-action-button w-full"
+                                                    onClick={() => handleUpdateStatus(order.id, order.rawStatus)}
+                                                    disabled={updatingOrder === order.id}
+                                                >
+                                                    {updatingOrder === order.id ? (
+                                                        <span className="flex items-center justify-center gap-2">
+                                                            <Loader2 className="w-4 h-4 animate-spin" /> Updating...
+                                                        </span>
+                                                    ) : (
+                                                        getNextStatusLabel(order.rawStatus)
                                                     )}
-                                                </div>
-
-                                                <div className="order-details">
-                                                    <div className="order-detail">
-                                                        <MapPin className="detail-icon w-4 h-4" />
-                                                        <span>{order.deliveryLocation}</span>
-                                                        <span className="detail-right detail-right-time">{formatDateDisplay(order.date, activeTab)}</span>
-                                                    </div>
-                                                    <div className="order-detail">
-                                                        <Package className="detail-icon w-4 h-4" />
-                                                        <span>{order.item}</span>
-                                                    </div>
-                                                    <div className="order-detail">
-                                                        <CreditCard className="detail-icon w-4 h-4" />
-                                                        <span>{order.payment}</span>
-                                                    </div>
-                                                    <div className="order-detail">
-                                                        <Bike className="detail-icon w-4 h-4" />
-                                                        <span>{order.vehicleType}</span>
-                                                        <span className={`detail-right detail-right-status status-text status-${order.status.toLowerCase()}`}>{order.status}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="order-footer">
-                                                    <div className="order-earnings">
-                                                        <span className="earnings-label">Earnings:</span>
-                                                        <span className="earnings-value">{order.earnings}</span>
-                                                    </div>
-
-                                                    <div className="order-actions">
-                                                        <button className="order-view-button">View</button>
-                                                        <button
-                                                            className={`remarks-button ${remarks[order.id] ? 'has-remarks' : ''}`}
-                                                            onClick={() => openRemarksModal(order.id, remarks[order.id])}
-                                                        >
-                                                            <MessageSquare size={16} />
-                                                            <span>{remarks[order.id] ? 'View Remarks' : 'Add Remarks'}</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {remarks[order.id] && (
-                                                    <div className="remarks-preview"><p className="remark-text">{remarks[order.id]}</p></div>
-                                                )}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
-
-            {/* Remarks Modal */}
-            {showRemarksModal && (
-                <div className="modal-overlay" onClick={() => setShowRemarksModal(false)}>
-                    <div className="remarks-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Order Remarks & Concerns</h2>
-                            <button
-                                className="close-button"
-                                onClick={() => setShowRemarksModal(false)}
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <div className="modal-body">
-                            <div className="order-info">
-                                <p className="order-id">
-                                    Order ID: {selectedOrderId}
-                                </p>
-                            </div>
-
-                            <div className="remarks-form">
-                                <label htmlFor="remarks-textarea">Add Your Remarks or Concerns:</label>
-                                <textarea
-                                    id="remarks-textarea"
-                                    className="remarks-textarea"
-                                    placeholder="Enter any concerns, issues, or notes about this delivery. This helps us improve our service and address any problems."
-                                    value={currentOrderRemark}
-                                    onChange={(e) => setCurrentOrderRemark(e.target.value)}
-                                    rows={6}
-                                    maxLength={500}
-                                />
-                                <p className="character-count">
-                                    {currentOrderRemark.length} / 500 characters
-                                </p>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button
-                                    className="cancel-button"
-                                    onClick={() => setShowRemarksModal(false)}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    className="save-button"
-                                    onClick={saveRemark}
-                                    disabled={!currentOrderRemark.trim()}
-                                >
-                                    Save Remarks
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Footer */}
             <div className="courier-footer">

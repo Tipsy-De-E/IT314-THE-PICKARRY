@@ -203,7 +203,6 @@ const OrderProfile = () => {
                 .update({
                     status: 'cancelled',
                     cancelled_at: new Date().toISOString(),
-                    cancellation_reason: cancelReason,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', id);

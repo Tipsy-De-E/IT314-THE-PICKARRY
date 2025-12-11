@@ -90,7 +90,7 @@ const CustomerMenu = () => {
         .from('customers')
         .select('*')
         .eq('email', session.email)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching user data:', error);
@@ -136,7 +136,7 @@ const CustomerMenu = () => {
         .from('couriers')
         .select('application_status, background_check_status, created_at, updated_at, id')
         .eq('email', session.email)
-        .single();
+        .maybeSingle();
 
       if (courierError && courierError.code !== 'PGRST116') {
         console.error('Error checking courier status:', courierError);

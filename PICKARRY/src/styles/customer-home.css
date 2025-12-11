@@ -692,6 +692,129 @@
     overflow: hidden;
 }
 
+/* Location Confirmation Modal Styles */
+.location-confirm-modal {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    margin: 20px;
+    border: 2px solid #14b8a6;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1000;
+}
+
+.location-confirm-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.location-confirm-icon {
+    color: #14b8a6;
+    margin: 0 auto 12px;
+}
+
+.selected-location-display {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    border: 1px solid #334155;
+}
+
+.location-address-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.location-address-text {
+    flex: 1;
+}
+
+.location-coordinates-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+}
+
+.coordinate-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.coordinate-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.coordinate-value {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.location-confirm-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.location-confirm-btn {
+    padding: 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    width: 100%;
+}
+
+.location-confirm-btn.confirm {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+    color: white;
+}
+
+.location-confirm-btn.confirm:hover {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(20, 184, 166, 0.3);
+}
+
+.location-confirm-btn.cancel {
+    background: rgba(71, 85, 105, 0.8);
+    color: #e2e8f0;
+    border: 1px solid #475569;
+}
+
+.location-confirm-btn.cancel:hover {
+    background: rgba(100, 116, 139, 0.8);
+    transform: translateY(-2px);
+}
+
+/* Responsive Styles for Location Confirm Modal */
+@media (max-width: 768px) {
+    .location-confirm-modal {
+        padding: 20px;
+        margin: 10px;
+    }
+
+    .location-coordinates-box {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Mobile Map Z-Index Fix */
 .mobile-map-panel {
     position: fixed;

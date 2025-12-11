@@ -9,7 +9,8 @@ const ADMIN_USER_ID = 999999;
 
 export const useNotifications = (userType) => {
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // unreadCount is derived from notifications to ensure consistency
+  const unreadCount = notifications.filter(n => !n.is_read).length;
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState({});
 
@@ -58,7 +59,6 @@ export const useNotifications = (userType) => {
       if (error) throw error;
 
       setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -138,9 +138,6 @@ export const useNotifications = (userType) => {
           },
           (payload) => {
             setNotifications(prev => [payload.new, ...prev]);
-            if (!payload.new.is_read) {
-              setUnreadCount(prev => prev + 1);
-            }
           }
         )
         .on(
@@ -155,9 +152,6 @@ export const useNotifications = (userType) => {
             setNotifications(prev =>
               prev.map(n => n.id === payload.new.id ? payload.new : n)
             );
-            // Recalculate unread count
-            const newUnreadCount = prev.filter(n => !n.is_read).length;
-            setUnreadCount(newUnreadCount);
           }
         )
         .subscribe();
@@ -181,7 +175,6 @@ export const useNotifications = (userType) => {
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -218,7 +211,6 @@ export const useNotifications = (userType) => {
       if (error) throw error;
 
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }

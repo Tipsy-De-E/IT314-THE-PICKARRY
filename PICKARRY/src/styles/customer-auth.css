@@ -384,8 +384,8 @@
 .password-toggle-enhanced {
     position: absolute;
     right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 30%;
+    /* transform: translateY(-50%); */
     background: none;
     border: none;
     color: rgba(156, 163, 175, 0.7);
@@ -1946,7 +1946,7 @@
 }
 
 .info-item svg {
-    color: #6b7280;
+    color: #14b8a6;
     flex-shrink: 0;
 }
 

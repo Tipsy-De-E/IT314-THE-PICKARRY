@@ -4,7 +4,7 @@ import {
   ChevronDown, MessageSquare, X, Home, ShoppingCart, Menu, Truck,
   Navigation, Calendar, User, Phone, Mail, CheckCircle, TruckIcon, Smartphone,
   Bell, FileText, Download, MessageCircle, DollarSign, Percent, Zap,
-  Star, Undo2
+  Star, Undo2, AlertTriangle, Ban
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearUserSession, getCurrentUser } from '../../utils/auth';
@@ -47,6 +47,13 @@ const CustomerOrders = () => {
   const [realTimeSubscription, setRealTimeSubscription] = useState(null);
   const [favoritesTableExists, setFavoritesTableExists] = useState(false);
 
+  // NEW STATE FOR CANCELLATION
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelNotes, setCancelNotes] = useState('');
+
   // FARE MANAGEMENT STATE
   const [fareConfig, setFareConfig] = useState(null);
   const [vehicleRates, setVehicleRates] = useState([]);
@@ -64,6 +71,99 @@ const CustomerOrders = () => {
       }
     };
   }, []);
+
+  // NEW: Fetch cancellation reasons from database or use defaults
+  const cancellationReasons = [
+    { value: 'change_of_plans', label: 'Change of Plans' },
+    { value: 'found_alternative', label: 'Found Alternative Courier' },
+    { value: 'order_placed_by_mistake', label: 'Order Placed by Mistake' },
+    { value: 'delivery_time_too_long', label: 'Delivery Time Too Long' },
+    { value: 'price_too_high', label: 'Price Too High' },
+    { value: 'pickup_location_change', label: 'Pickup Location Changed' },
+    { value: 'delivery_location_change', label: 'Delivery Location Changed' },
+    { value: 'other', label: 'Other Reason' }
+  ];
+
+  // NEW: Open cancel confirmation modal
+  const openCancelModal = (order) => {
+    setOrderToCancel(order);
+    setCancelReason('');
+    setCancelNotes('');
+    setShowCancelModal(true);
+  };
+
+  // NEW: Cancel order function
+  const cancelOrder = async () => {
+    if (!orderToCancel || !cancelReason) {
+      alert('Please select a cancellation reason');
+      return;
+    }
+
+    if (!currentUser?.id) {
+      alert('Please login again');
+      return;
+    }
+
+    setCancelling(true);
+
+    try {
+      // Update order status to cancelled
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderToCancel.id);
+
+      if (orderError) throw orderError;
+
+      // Add status history entry
+      const { error: historyError } = await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: orderToCancel.id,
+          status: 'cancelled',
+          notes: `Order cancelled by customer. Reason: ${cancellationReasons.find(r => r.value === cancelReason)?.label}${cancelNotes ? ` - ${cancelNotes}` : ''}`,
+          created_at: new Date().toISOString()
+        });
+
+      if (historyError) throw historyError;
+
+      // Send notification to admin/courier if assigned
+      try {
+        if (orderToCancel.supabaseData?.courier_id) {
+          await notificationService.notifyOrderCancelled(
+            orderToCancel.id,
+            currentUser.full_name || 'Customer',
+            orderToCancel.supabaseData.courier_id,
+            cancellationReasons.find(r => r.value === cancelReason)?.label
+          );
+        }
+      } catch (notificationError) {
+        console.error('Error sending cancellation notification:', notificationError);
+        // Don't fail the cancellation if notification fails
+      }
+
+      // Refresh orders list
+      await fetchOrders(currentUser.id);
+
+      // Close modal
+      setShowCancelModal(false);
+      setOrderToCancel(null);
+      setCancelReason('');
+      setCancelNotes('');
+
+      alert('Order cancelled successfully. It has been moved to Order History.');
+
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      alert('Error cancelling order. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Check if favorites table exists
   const checkFavoritesTableExists = async () => {
@@ -769,9 +869,9 @@ const CustomerOrders = () => {
       'pending': 'Pending',
       'accepted': 'Accepted',
       'in_progress': 'In Progress',
-      'picked_up': 'In Progress',
-      'on_the_way': 'In Progress',
-      'arrived': 'In Progress',
+      'picked_up': 'Picked Up',
+      'on_the_way': 'On The Way',
+      'arrived': 'Arrived',
       'delivered': 'Completed',
       'cancelled': 'Cancelled'
     };
@@ -997,13 +1097,12 @@ const CustomerOrders = () => {
     setShowTrackingModal(true);
   };
 
-  // Get status display text
   const getStatusDisplay = (deliveryStatus) => {
     const statusMap = {
       'pending': 'Pending Acceptance',
-      'accepted': 'Courier Assigned',
+      'accepted': 'Courier Heading to Pickup',
       'picked_up': 'Package Picked Up',
-      'on_the_way': 'On The Way',
+      'on_the_way': 'Out for Delivery',
       'arrived': 'Courier Arrived',
       'delivered': 'Delivered',
       'cancelled': 'Cancelled',
@@ -1014,7 +1113,7 @@ const CustomerOrders = () => {
 
   // Timeline rendering function for customer view
   const renderTimeline = (order) => {
-    const statusOrder = ['pending', 'accepted', 'picked_up', 'on_the_way', 'delivered'];
+    const statusOrder = ['pending', 'accepted', 'picked_up', 'on_the_way', 'arrived', 'delivered'];
     const currentStatusIndex = statusOrder.indexOf(order.deliveryStatus);
 
     return (
@@ -1026,7 +1125,7 @@ const CustomerOrders = () => {
 
           return (
             <div key={status} className={`timeline-step-horizontal ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}>
-              <div className="timeline-marker-horizontal">
+              <div className={`timeline-marker-horizontal ${isCompleted ? 'completed-marker' : ''}`}>
                 {isCompleted ? <CheckCircle size={16} /> : <div className="pending-marker-horizontal" />}
               </div>
               <div className="timeline-content-horizontal">
@@ -1036,7 +1135,7 @@ const CustomerOrders = () => {
                 )}
               </div>
               {index < statusOrder.length - 1 && (
-                <div className={`timeline-connector-horizontal ${isCompleted ? 'completed' : ''}`} />
+                <div className={`timeline-connector-horizontal ${isCompleted && index < currentStatusIndex ? 'completed' : ''}`} />
               )}
             </div>
           );
@@ -1569,6 +1668,19 @@ const CustomerOrders = () => {
                     </button>
 
                     <div className='current-order-actions'>
+                      {/* Cancel Order Button (Only for Pending status in current/book tabs) */}
+                      {(activeTab === 'current' || activeTab === 'book') &&
+                        order.status === 'Pending' &&
+                        order.deliveryStatus === 'pending' && (
+                          <button
+                            className="cancel-order-button"
+                            onClick={() => openCancelModal(order)}
+                          >
+                            <Ban size={16} />
+                            <span>Cancel Order</span>
+                          </button>
+                        )}
+
                       {/* Track Delivery Button */}
                       {(activeTab === 'current' || activeTab === 'book') &&
                         order.status !== 'Completed' &&
@@ -1849,6 +1961,22 @@ const CustomerOrders = () => {
                 >
                   Close
                 </button>
+
+                {/* Cancel Order Button in Modal (Only for Pending status) */}
+                {(activeTab === 'current' || activeTab === 'book') &&
+                  selectedOrder.status === 'Pending' &&
+                  selectedOrder.deliveryStatus === 'pending' && (
+                    <button
+                      className="cancel-order-button-modal"
+                      onClick={() => {
+                        setShowOrderDetailsModal(false);
+                        openCancelModal(selectedOrder);
+                      }}
+                    >
+                      <Ban size={16} />
+                      <span>Cancel Order</span>
+                    </button>
+                  )}
 
                 {/* Customer Feedback Button (FROM customer TO courier) */}
                 {activeTab === 'history' && (
@@ -2131,6 +2259,120 @@ const CustomerOrders = () => {
         </div>
       )}
 
+      {/* CANCEL ORDER CONFIRMATION MODAL */}
+      {showCancelModal && orderToCancel && (
+        <div className="modal-overlay" onClick={() => setShowCancelModal(false)}>
+          <div className="cancel-order-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <button className="close-button" onClick={() => setShowCancelModal(false)}>
+                <X size={24} />
+              </button>
+              <h2>Cancel Order</h2>
+            </div>
+            <div className="modal-bodys">
+              <div className="cancel-warning">
+                <AlertTriangle size={24} className="warning-icon" />
+                <h3>Are you sure you want to cancel this order?</h3>
+                <p className="warning-text">
+                  Order #{orderToCancel.orderNumber} will be moved to Order History as Cancelled.
+                  This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="cancel-reason-section">
+                <label className="cancel-reason-label">
+                  Please select a reason for cancellation *
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="cancel-reason-select"
+                  required
+                >
+                  <option value="">Select a reason</option>
+                  {cancellationReasons.map(reason => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="cancel-notes-section">
+                  <label className="cancel-notes-label">
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    value={cancelNotes}
+                    onChange={(e) => setCancelNotes(e.target.value)}
+                    placeholder="Please provide any additional details about why you're cancelling..."
+                    className="cancel-notes-textarea"
+                    rows={3}
+                    maxLength={200}
+                  />
+                  <p className="character-count">{cancelNotes.length} / 200 characters</p>
+                </div>
+              </div>
+
+              <div className="order-summary-cancel">
+                <h4>Order Summary</h4>
+                <div className="order-summary-details">
+                  <div className="summary-row">
+                    <span>Order Number:</span>
+                    <span>{orderToCancel.orderNumber}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span>Pickup:</span>
+                    <span>{orderToCancel.pickupLocation}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span>Delivery:</span>
+                    <span>{orderToCancel.deliveryLocation}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span>Total Amount:</span>
+                    <span>₱{orderToCancel.totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-actions-cancel">
+                <button
+                  className="cancel-modal-button secondary"
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={cancelling}
+                >
+                  Keep Order
+                </button>
+                <button
+                  className="cancel-modal-button primary"
+                  onClick={cancelOrder}
+                  disabled={cancelling || !cancelReason}
+                >
+                  {cancelling ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <Ban size={16} />
+                      Confirm Cancellation
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="cancellation-note">
+                <p>
+                  <strong>Note:</strong> If your order has already been accepted by a courier,
+                  they will be notified of the cancellation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
@@ -2278,7 +2520,7 @@ const CustomerOrders = () => {
           </div>
         </div>
 
-        <!-- Payment Method -->
+        {/* Payment Method */}
         <div style="margin-bottom: 20px;">
           <h4 style="margin: 0 0 15px 0; color: #000; font-size: 16px; font-weight: bold;">Payment Information</h4>
           <div style="background: #f9f9f9; padding: 15px; border-radius: 4px; font-size: 14px;">
@@ -2293,7 +2535,7 @@ const CustomerOrders = () => {
           </div>
         </div>
 
-        <!-- Footer -->
+        {/* Footer */}
         <div style="text-align: center; padding-top: 20px; border-top: 2px solid #000; margin-top: 20px; color: #666; font-size: 12px;">
           <p style="margin: 5px 0; font-style: italic;">Thank you for choosing Pickarry!</p>
           <p style="margin: 5px 0;">For inquiries: THE-PICKARRY@GMAIL.COM</p>

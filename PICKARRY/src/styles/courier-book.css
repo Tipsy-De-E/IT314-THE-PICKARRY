@@ -989,7 +989,7 @@
 
 .timeline-connector {
     position: absolute;
-    top: 16px;
+    top: 25px;
     left: 60%;
     right: -40%;
     height: 2px;
@@ -2400,7 +2400,7 @@
 
 .timeline-connector {
     position: absolute;
-    top: 16px;
+    top: 25px;
     left: 60%;
     right: -40%;
     height: 2px;

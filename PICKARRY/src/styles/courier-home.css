@@ -1602,3 +1602,298 @@
 .suggestion-button:hover {
     background: #545b62;
 }
+
+/* OWN ORDER STYLES */
+.own-order {
+    border-left: 4px solid #f59e0b;
+    position: relative;
+}
+
+.own-order .order-badge.own-order-badge {
+    background: #14b8a678;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 32px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.own-order .order-badge.own-order-badge svg {
+    stroke-width: 2.5;
+}
+
+.own-order-notice {
+    /* border: 1px solid #fbbf24; */
+    border-radius: 6px;
+    /* padding: 10px 14px; */
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #ffe100;
+    justify-content: flex-end;
+}
+
+.own-order-notice svg {
+    color: #ffe100;
+    flex-shrink: 0;
+}
+
+/* OWN ORDER WARNING IN MODAL */
+.own-order-warning {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.own-order-warning svg {
+    color: #d97706;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.own-order-warning .warning-content h4 {
+    color: #92400e;
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.own-order-warning .warning-content p {
+    color: #92400e;
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.own-order-warning .warning-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.own-order-warning .view-customer-button {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.own-order-warning .view-customer-button:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: translateY(-1px);
+}
+
+/* DISABLED ACCEPT BUTTON FOR OWN ORDERS */
+.action-button.accept.disabled {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    color: #d1d5db;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.action-button.accept.disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ENHANCED REJECTION WARNING */
+.rejection-warning.own_order {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #f59e0b;
+}
+
+.rejection-warning.own_order svg {
+    color: #d97706;
+}
+
+.rejection-warning.own_order .rejection-message h4 {
+    color: #92400e;
+}
+
+.rejection-warning.own_order .rejection-message p {
+    color: #92400e;
+}
+
+/* ORDER CARD HOVER EFFECT FOR OWN ORDERS */
+.own-order:hover {
+    /* box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15); */
+    transform: translateY(-2px);
+}
+
+/* RESPONSIVE ADJUSTMENTS */
+@media (max-width: 768px) {
+    .own-order-notice {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .own-order-warning {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+
+    .own-order-warning .warning-actions {
+        justify-content: center;
+    }
+}
+
+/* ACCEPTANCE COUNTDOWN MODAL */
+.acceptance-countdown-modal {
+    background: #1f2937;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.acceptance-countdown-modal .modal-header {
+    background: #1f2937;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.5);
+    padding: 20px 24px;
+    border-radius: 12px 12px 0 0;
+}
+
+.acceptance-countdown-modal .modal-header h2 {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.acceptance-countdown-modal .modal-body {
+    padding: 24px;
+}
+
+.countdown-content {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.countdown-icon {
+    margin-bottom: 20px;
+}
+
+.countdown-message h3 {
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.countdown-message p {
+    color: #9ca3af;
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.order-summary {
+    background: rgba(31, 41, 55, 0.5);
+    border: 1px solid rgba(75, 85, 99, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.order-summary p {
+    margin: 0 0 8px 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.order-summary p:last-child {
+    margin-bottom: 0;
+}
+
+.countdown-timer {
+    margin-bottom: 24px;
+}
+
+.timer-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 4px solid #14b8a6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: bold;
+    color: #14b8a6;
+    margin: 0 auto;
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.proceed-button {
+    background: #14b8a6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+}
+
+.proceed-button:hover {
+    background: #0d9488;
+    transform: translateY(-1px);
+}
+
+/* Responsive adjustments for countdown modal */
+@media (max-width: 640px) {
+    .acceptance-countdown-modal {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .countdown-content {
+        margin-bottom: 20px;
+    }
+
+    .countdown-message h3 {
+        font-size: 18px;
+    }
+
+    .countdown-message p {
+        font-size: 14px;
+    }
+
+    .timer-circle {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .proceed-button,
+    .cancel-button.secondary {
+        width: 100%;
+    }
+}
